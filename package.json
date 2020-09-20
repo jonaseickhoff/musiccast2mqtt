@@ -1,0 +1,67 @@
+{
+  "name": "musiccast2mqtt",
+  "version": "0.0.1",
+  "description": "Gateway between Yamaha Musiccast system and MQTT",
+  "main": "index.js",
+  "bin": {
+    "musiccast2mqtt": "index.js"
+  },
+  "preferGlobal": true,
+  "scripts": {
+    "test": "camo-purge ; xo && sudo -E node_modules/.bin/nyc node_modules/.bin/mocha --exit test.js && node_modules/.bin/nyc report --reporter=text-lcov | node_modules/.bin/coveralls --force",
+    "lintfix": "xo --fix"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jeickhoff/musiccast2mqtt"
+  },
+  "keywords": [
+    "mqtt",
+    "smarthome",
+    "yamaha",
+    "musiccast"
+  ],
+  "author": "Jonas Eickhoff <jonas02401@gmail.com> (https://hobbyquaker.github.io)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/jeickhoff/musiccast2mqtt/issues"
+  },
+  "homepage": "https://github.com/jeickhoff/musiccast2mqtt",
+  "dependencies": {
+    "@root/request": "^1.6.1",
+    "bluebird": "^3.7.2",
+    "mqtt": "^2.16.0",
+    "peer-ssdp": "0.0.5",
+    "serilogger": "^0.3.1",
+    "yargs": "^11.0.0"
+  },
+  "devDependencies": {
+    "camo-purge": "latest",
+    "coveralls": "latest",
+    "mocha": "latest",
+    "nyc": "latest",
+    "request": "latest",
+    "should": "latest",
+    "stream-splitter": "latest",
+    "typescript": "^4.0.2",
+    "xo": "latest"
+  },
+  "yargs": {
+    "boolean-negation": false
+  },
+  "nyc": {
+    "exclude": [
+      "test.js",
+      "config.js"
+    ]
+  },
+  "engines": {
+    "node": ">=6.0.0"
+  },
+  "xo": {
+    "space": 4,
+    "ignore": [
+      "test.js"
+    ]
+  }
+}

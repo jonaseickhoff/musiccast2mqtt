@@ -1,0 +1,18 @@
+{
+    "compilerOptions": {
+        "outDir": "./out",
+        "allowJs": true,
+        "module": "commonjs",
+        "target": "ES2017",
+        "sourceMap": true,
+        "esModuleInterop": true
+    },
+    "include": [
+        "./src/**/*",
+    ],
+    "exclude": [
+        "node_modules",
+        "**/__tests__/*",
+        "out/"
+    ]
+}
