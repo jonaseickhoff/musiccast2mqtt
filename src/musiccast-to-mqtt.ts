@@ -30,6 +30,8 @@ export class MusiccastToMqtt {
         this.mqtt_retain = config.mqtt_retain;
         this.mqttConnected = false;
 
+        this.createDevicesFromIps(config.devices);
+
         if (config.polling_interval > 0) {
             this.pollingInterval = config.polling_interval * 1000;
             this.pollingTimeout = setTimeout(() => this.pollDeviceStatus(), this.pollingInterval);
@@ -53,7 +55,7 @@ export class MusiccastToMqtt {
     }
 
     private connect(): void {
-        this.log.info('mqtt trying to connect', this.mqtt_uri);
+        this.log.info('mqtt trying to connect {mqtt_url}', this.mqtt_uri);
 
         this.mqttClient = mqtt.connect(this.mqtt_uri, {
             clientId: this.mqtt_prefix + '_' + Math.random().toString(16).substr(2, 8),
@@ -173,8 +175,15 @@ export class MusiccastToMqtt {
             }
             else {
                 this.log.debug("Add new Musiccast device: {device}", JSON.stringify(device));
-                this.mcDevices[device.device_id] = new MusiccastDevice(device.device_id, device.ip, device.name, device.model, (device, topic, payload) => this.deviceUpdated(device, topic, payload));
+                this.mcDevices[device.device_id] = new MusiccastDevice(device.device_id, device.ip, device.model, (device, topic, payload) => this.deviceUpdated(device, topic, payload));
             }
         });
+    }
+
+    private async createDevicesFromIps(devices: string[]) {
+        for (const device of devices) {
+            let mcDevice = await MusiccastDevice.fromIp(device, (device, topic, payload) => this.deviceUpdated(device, topic, payload));
+            this.mcDevices[mcDevice.device_id] = mcDevice;
+        }
     }
 }

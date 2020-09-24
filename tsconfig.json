@@ -1,6 +1,6 @@
 {
     "compilerOptions": {
-        "outDir": "./out",
+        "outDir": "./lib",
         "allowJs": true,
         "module": "commonjs",
         "target": "ES2017",
@@ -13,6 +13,6 @@
     "exclude": [
         "node_modules",
         "**/__tests__/*",
-        "out/"
+        "lib/"
     ]
 }

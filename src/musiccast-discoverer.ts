@@ -78,10 +78,6 @@ export class MusiccastDiscoverer {
         var req = {
             method: 'GET',
             uri: 'http://' + ip + '/YamahaExtendedControl/v1/system/getDeviceInfo',
-            headers: {
-                'X-AppName': 'MusicCast/1.0',
-                'X-AppPort': '41100',
-            },
             json: true,
             timeout: 1000
         };
@@ -99,4 +95,5 @@ export class MusiccastDiscoverer {
         }
         return undefined;
     };
-}
+
+  }

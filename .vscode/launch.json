@@ -8,10 +8,10 @@
             "type": "node",
             "request": "launch",
             "name": "Launch Program",
-            "args":["--log", "verbose", "--mqtt", "mqtt://mqttbroker.home.lan"],
+            "args":["--log", "verbose", "--mqtt", "mqtt://mqttbroker.home.lan","--devices", "192.168.178.150", "192.168.178.155"],
             "program": "${workspaceFolder}/src/index.ts",
             "preLaunchTask": "tsc: build - tsconfig.json",
-            "outFiles": ["${workspaceFolder}/out/**/*.js"]
+            "outFiles": ["${workspaceFolder}/lib/**/*.js"]
         }
     ]
 }

@@ -11,6 +11,7 @@ export interface Config {
     mqtt_retain: boolean;
     friendlynames: 'name' | 'uuid';
     insecure: boolean;
+    devices: string[]; 
 }
 
 
@@ -21,7 +22,8 @@ const defaultConfig: Config = {
     polling_interval: 60,
     mqtt_retain: true,
     friendlynames: 'name',
-    insecure: true
+    insecure: true,
+    devices: []
 }
 
 
@@ -47,11 +49,13 @@ export class ConfigLoader {
             .describe('mqtt_retain', '')
             .describe('friendlynames', 'Use device name or uuid in topics (except the united topic, always uuid)')
             .describe('insecure', 'allow tls connections with invalid certificates')
+            .describe('devices', 'array of devices which should be controlled by mqtt')
             .choices('log', ['warning', 'information', 'debug', 'verbose'])
             .boolean('mqtt_retain')
             .number('polling_interval')
             .choices('friendlynames', ['name', 'uuid'])
             .boolean('insecure')
+            .array('devices')
             .alias({
                 h: 'help',
             })
@@ -62,7 +66,8 @@ export class ConfigLoader {
                 polling_interval: 60,
                 mqtt_retain: true,
                 friendlynames: 'name',
-                insecure: true
+                insecure: true,
+                devices: []
             })
             .version()
             .help('help')

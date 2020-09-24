@@ -13,6 +13,28 @@ export class MusiccastDevice {
 
     private readonly log = StaticLogger.CreateLoggerForSource('MusiccastDevice.main');
 
+    public static async fromIp(ip: string, publishUpdate: updateCallback): Promise<MusiccastDevice> {
+        var log = StaticLogger.CreateLoggerForSource('MusiccastDevice.main');
+        var req = {
+            method: 'GET',
+            uri: 'http://' + ip + '/YamahaExtendedControl/v1/system/getDeviceInfo',
+            json: true,
+            timeout: 1000
+        };
+        log.verbose("Get Device Info Request {request}", JSON.stringify(req));
+        try {
+            let response = await request.getAsync(req);
+            if (response.body.response_code === 0) {
+                let device: MusiccastDevice = new MusiccastDevice(response.body.device_id, ip, response.body.model_name, publishUpdate);
+                return device;
+            }
+        }
+        catch (error) {
+            log.error("Error creating Device from {ip} during: {error}", ip, error);
+        }
+        return undefined;
+    } 
+
     private readonly responseDelay: number;
     private readonly requestTimeout: number;
     private readonly catchRequestErrors: boolean;
@@ -28,10 +50,9 @@ export class MusiccastDevice {
     public name: string;
     public model: string;
 
-    constructor(device_id: string, ip: string, name: string, model: string, publishUpdate: updateCallback) {
+    constructor(device_id: string, ip: string, model: string, publishUpdate: updateCallback) {
         this.device_id = device_id;
         this.ip = ip;
-        this.name = name;
         this.model = model;
         this.publishUpdate = publishUpdate;
 
@@ -39,9 +60,8 @@ export class MusiccastDevice {
         this.requestTimeout = 5000;
         this.catchRequestErrors = true
 
-        MusiccastEventListener.DefaultInstance.RegisterSubscription(this.device_id, (event: any) => this.parseNewEvent(event))
         this.initDevice();
-    }
+    }    
 
     public async pollDevice(): Promise<void> {
         if (this.isInitalized) {
@@ -96,8 +116,16 @@ export class MusiccastDevice {
     }
 
     private async initDevice(): Promise<void> {
+       
         this.features = await this.getFeatures();
         this.log.debug("{device_id} Features: {features}", this.device_id, this.features);
+      
+        let networkStatus = await this.getNetworkStatus();
+        this.log.debug("{device_id} NetworkStatus: {networkStatus}", this.device_id, networkStatus);
+        this.name = networkStatus.network_name;
+
+        MusiccastEventListener.DefaultInstance.RegisterSubscription(this.device_id, (event: any) => this.parseNewEvent(event))
+        
         this.isInitalized = true;
     }
 
