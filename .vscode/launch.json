@@ -8,10 +8,28 @@
             "type": "node",
             "request": "launch",
             "name": "Launch Program",
-            "args":["--log", "verbose", "--mqtt", "mqtt://mqttbroker.home.lan","--devices", "192.168.178.150", "192.168.178.155"],
+            "args": [
+                "--log",
+                "debug",
+                "--mqtt",
+                "mqtt://mqttbroker.home.lan",
+                "--polling_interval",
+                "10",
+                "--friendlynames",
+                "name",
+                "--devices",
+                "192.168.178.155",
+                "192.168.178.153",
+                "192.168.178.154",
+                "192.168.178.152",
+                "192.168.178.151",
+                "192.168.178.150"
+            ],
             "program": "${workspaceFolder}/src/index.ts",
             "preLaunchTask": "tsc: build - tsconfig.json",
-            "outFiles": ["${workspaceFolder}/lib/**/*.js"]
+            "outFiles": [
+                "${workspaceFolder}/lib/**/*.js"
+            ]
         }
     ]
 }

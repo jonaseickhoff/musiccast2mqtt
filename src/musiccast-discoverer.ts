@@ -40,8 +40,6 @@ export class MusiccastDiscoverer {
             setTimeout(async () => {
                 if (peer) peer.close();
                 this.log.info('discover finished');
-                // let foundDevice = {device_id: "BC30D961AF7A", model: "RX-V685", ip: "192.168.178.150", name: "Wohnzimmer", serial_number: "Y336848UW", system_id: "0BF03823" }
-                // foundDevices = [...foundDevices, foundDevice];
                 resolve(foundDevices);
             }, duration);
 
@@ -56,9 +54,9 @@ export class MusiccastDiscoverer {
                     request(headers.LOCATION, async (error, response, body) => {
                         if (!error && response.statusCode == 200 && this.reyxcControl.test(body)) {
                             this.log.verbose("ssdp message: {body}", body);
-                            var model = this.reModelName.exec(body);
-                            var name = this.reFriendlyName.exec(body);
-                            var system_id = this.reUniqueID.exec(body);
+                            let model = this.reModelName.exec(body);
+                            let name = this.reFriendlyName.exec(body);
+                            let system_id = this.reUniqueID.exec(body);
                             let foundDevice: DiscoveredMusiccastDevice = await this.GetDeviceInfo(address.address, model[1], name[1], system_id[1]);
                             if (foundDevice !== undefined) {
                                 foundDevices = [...foundDevices, foundDevice];

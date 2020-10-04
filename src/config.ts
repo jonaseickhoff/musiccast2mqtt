@@ -11,7 +11,7 @@ export interface Config {
     mqtt_retain: boolean;
     friendlynames: 'name' | 'uuid';
     insecure: boolean;
-    devices: string[]; 
+    devices: string[];
 }
 
 
@@ -21,7 +21,7 @@ const defaultConfig: Config = {
     log: 'information',
     polling_interval: 60,
     mqtt_retain: true,
-    friendlynames: 'name',
+    friendlynames: 'uuid',
     insecure: true,
     devices: []
 }
@@ -29,13 +29,18 @@ const defaultConfig: Config = {
 
 
 export class ConfigLoader {
-    
-    static LoadConfig(): Config {
-        const config = { ...defaultConfig, ...ConfigLoader.LoadConfigFromArguments() };
 
-        StaticLogger.setLevel(config.log)
-        return config;
+    private static _config: Config;
+
+    static Config(): Config {
+        if (!this._config) {
+            this._config = { ...defaultConfig, ...ConfigLoader.LoadConfigFromArguments() };
+            StaticLogger.setLevel(this._config.log)
+        }
+        return this._config;
     }
+
+
 
     private static LoadConfigFromArguments(): Partial<Config> {
         const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json')).toString())
@@ -47,7 +52,7 @@ export class ConfigLoader {
             .describe('polling_interval', `device status polling interval in seconds. Set 0 for disable polling.
             Please have in mind that listen to UDP Events is only possible if a polling is done at least every 10 minutes.`)
             .describe('mqtt_retain', '')
-            .describe('friendlynames', 'Use device name or uuid in topics (except the united topic, always uuid)')
+            .describe('friendlynames', 'Use device name or uuid (be sure to have unique device names if using name)')
             .describe('insecure', 'allow tls connections with invalid certificates')
             .describe('devices', 'array of devices which should be controlled by mqtt')
             .choices('log', ['warning', 'information', 'debug', 'verbose'])
@@ -65,7 +70,7 @@ export class ConfigLoader {
                 log: 'information',
                 polling_interval: 60,
                 mqtt_retain: true,
-                friendlynames: 'name',
+                friendlynames: 'uuid',
                 insecure: true,
                 devices: []
             })

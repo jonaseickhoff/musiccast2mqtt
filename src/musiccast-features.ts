@@ -86,6 +86,16 @@ export interface McDistributionInfo {
     audio_dropout: boolean;
 }
 
+export interface McStereoPairInfo {
+    status: string;
+    pair_info: {
+        alive: string,
+        ip_address: string,
+        mac_address: string
+    }
+
+}
+
 export interface McLinkedClient {
     /** Returns clients’ IP Address */
     ip_address: string;
@@ -226,5 +236,14 @@ export enum McSoundProgram {
     STRAIGHT = "straight",
     OFF = "off",
     BASS_BOOSTER = "bass_booster",
+}
+
+export enum McResponseCode {
+    SuccessfulRequest = 0,
+    Initializing = 1,
+    InternalError = 2,
+    InvalidRequest = 3,
+    InvalidParameter = 4,
+    Guarded = 5
 }
 

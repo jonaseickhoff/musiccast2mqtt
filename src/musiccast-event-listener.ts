@@ -41,7 +41,7 @@ export class MusiccastEventListener {
         this.subscriptions[device_id] = callback;
     }
 
-    public UnregisterSubscription(device_id: string): void {        
+    public UnregisterSubscription(device_id: string): void {
         delete this.subscriptions[device_id];
         if (this.isListening && Object.keys(this.subscriptions).length === 0) {
             this.log.debug('Stop listening on port %d', this.port);
@@ -56,18 +56,22 @@ export class MusiccastEventListener {
     }
 
     private serverListening(): void {
-        var address = this.server.address();
+        let address = this.server.address();
         this.log.debug('UDP Server listening on ' + address.address + ':' + address.port);
     }
 
     private serverMessage(message: Buffer, remote: RemoteInfo): void {
         this.log.verbose("New udp message: {message}", remote.address + ':' + remote.port + ' - ' + message);
-        let event = JSON.parse(message.toString());
-        let callback: eventCallback = this.subscriptions[event.device_id];
-        if(callback !== undefined)
-            callback(event);
-        else{
-            this.log.warn("New udp message from unknown device: {message}", remote.address + ':' + remote.port + ' - ' + message);
+        try {
+            let event = JSON.parse(message.toString());
+            let callback: eventCallback = this.subscriptions[event.device_id];
+            if (callback !== undefined)
+                callback(event);
+            else {
+                this.log.warn("New udp message from unknown device: {message}", remote.address + ':' + remote.port + ' - ' + message);
+            }
+        }catch(error){
+            this.log.error("Error while receiving udp event: {error}", error)
         }
     }
 

@@ -7,7 +7,7 @@ import { MusiccastToMqtt } from './musiccast-to-mqtt'
 import { StaticLogger } from './static-logger'
 import {ConfigLoader} from './config'
 
-const musiccastToMqtt = new MusiccastToMqtt(ConfigLoader.LoadConfig())
+const musiccastToMqtt = new MusiccastToMqtt(ConfigLoader.Config())
 const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json')).toString())
 StaticLogger.Default().info(`Starting ${pkg.name} v${pkg.version}`)
 
