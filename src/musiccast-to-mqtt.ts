@@ -29,14 +29,14 @@ export class MusiccastToMqtt {
         this.mqtt_uri = config.mqtt;
         this.mqtt_prefix = config.prefix;
         this.mqtt_insecure = config.insecure;
-        this.mqtt_retain = config.mqtt_retain;
+        this.mqtt_retain = config.mqttRetain;
         this.mqttConnected = false;
         this.useFriendlyNames = config.friendlynames === 'name';
 
         this.createDevicesFromIps(config.devices);
 
-        if (config.polling_interval > 0) {
-            this.pollingInterval = config.polling_interval * 1000;
+        if (config.pollingInterval > 0) {
+            this.pollingInterval = config.pollingInterval * 1000;
             this.pollingTimeout = setTimeout(() => this.pollDeviceStatus(), this.pollingInterval);
         }
     }

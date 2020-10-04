@@ -115,8 +115,8 @@ export class MusiccastDevice {
                 for (const zone of this._features.zone) {
                     await this.updateStatus(zone.id);
                 }
-                await this.updateDistributionInfo();
                 await this.updateStereoPairInfo();
+                await this.updateDistributionInfo();
             } catch (error) {
                 this.log.error("{device_id}: Error polling device status {error}", this.device_id, error)
             }
@@ -233,13 +233,15 @@ export class MusiccastDevice {
     }
 
     private async initDevice(): Promise<void> {
-        this.updateNetworkStatus();
+        await this.updateNetworkStatus();
+        await this.updateStereoPairInfo();
 
         let response = await this.getFeatures();
         delete response.response_code;
         this._features = response;
         this.log.debug("{device_id} Features: {features}", this.device_id, this._features);
         this.publishUpdate(this, `features`, this._features);
+
 
         MusiccastEventListener.DefaultInstance.RegisterSubscription(this.device_id, (event: any) => this.parseNewEvent(event))
 
