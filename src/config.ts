@@ -61,6 +61,17 @@ export class ConfigLoader {
             .choices('friendlynames', ['name', 'uuid'])
             .boolean('insecure')
             .array('devices')
+            .coerce('devices', array => {
+                const values = []
+                for (const value of array) {
+                    if (typeof value === 'string') {
+                        values.push(...value.split(/\s+/))
+                    } else {
+                        values.push(value)
+                    }
+                }
+                return values;
+            })
             .alias({
                 h: 'help',
             })

@@ -191,7 +191,7 @@ export class MusiccastDevice {
         }
         else if (this._distributionInfos.role === McGroupRole.Client && !this.isGroupIdEmpty()) {
             this._role = McGroupRole.Client;
-            let server: MusiccastDevice = Object.values(MusiccastToMqtt.mcDevices).find(d => d.distributionInfos.group_id == this.distributionInfos.group_id && d.role === McGroupRole.Server)
+            let server: MusiccastDevice = Object.values(MusiccastToMqtt.mcDevices).find(d => d.distributionInfos && d.distributionInfos.group_id == this.distributionInfos.group_id && d.role === McGroupRole.Server)
             if (server) {
                 this._linkedDevices = [server];
             }else{
