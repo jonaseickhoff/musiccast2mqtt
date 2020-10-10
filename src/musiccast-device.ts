@@ -43,6 +43,7 @@ export class MusiccastDevice {
     private readonly requestTimeout: number;
     private readonly publishUpdate: updateCallback;
     private readonly useFriendlyNames: boolean;
+    private readonly udpPort: number;
 
     private _features: McFeatures;
     private _distributionInfos: McDistributionInfo;
@@ -70,6 +71,7 @@ export class MusiccastDevice {
         this.requestTimeout = 5000;
 
         this.useFriendlyNames = ConfigLoader.Config().friendlynames === 'name';
+        this.udpPort = ConfigLoader.Config().udpPort;
 
         this.initDevice();
     }
@@ -322,7 +324,7 @@ export class MusiccastDevice {
             uri: 'http://' + this.ip + '/YamahaExtendedControl/v1' + cmd,
             headers: {
                 'X-AppName': 'MusicCast/1.0',
-                'X-AppPort': '41100',
+                'X-AppPort': this.udpPort
             },
             json: true,
             timeout: this.requestTimeout

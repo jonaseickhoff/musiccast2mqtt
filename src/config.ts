@@ -12,6 +12,7 @@ export interface Config {
     friendlynames: 'name' | 'uuid';
     insecure: boolean;
     devices: string[];
+    udpPort: number;
 }
 
 
@@ -23,7 +24,8 @@ const defaultConfig: Config = {
     mqttRetain: true,
     friendlynames: 'uuid',
     insecure: true,
-    devices: []
+    devices: [],
+    udpPort: 41100
 }
 
 
@@ -55,12 +57,14 @@ export class ConfigLoader {
             .describe('friendlynames', 'Use device name or uuid (be sure to have unique device names if using name)')
             .describe('insecure', 'allow tls connections with invalid certificates')
             .describe('devices', 'array of devices which should be controlled by mqtt')
+            .describe('udpPort', 'port for listening on udp events on status change')
             .choices('log', ['warning', 'information', 'debug', 'verbose'])
             .boolean('mqtt-retain')
             .number('polling-interval')
             .choices('friendlynames', ['name', 'uuid'])
             .boolean('insecure')
             .array('devices')
+            .number('udpPort')
             .coerce('devices', array => {
                 const values = []
                 for (const value of array) {
@@ -83,7 +87,8 @@ export class ConfigLoader {
                 'mqtt-retain': true,
                 friendlynames: 'uuid',
                 insecure: true,
-                devices: []
+                devices: [],
+                udpPort: 41100
             })
             .version()
             .help('help')

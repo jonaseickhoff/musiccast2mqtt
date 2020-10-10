@@ -21,5 +21,4 @@ LABEL org.label-schema.build-date=$BUILD_DATE \
       org.label-schema.url=https://github.com/jeickhoff/musiccast2mqtt/ \
       org.label-schema.version=$BUILD_VERSION \
       org.label-schema.vcs-ref=$VCS_REF
-EXPOSE 41100/udp
 CMD ["node", "./lib/index.js"]

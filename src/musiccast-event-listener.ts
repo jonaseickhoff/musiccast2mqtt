@@ -1,5 +1,6 @@
 import { Socket, createSocket, RemoteInfo } from 'dgram'
 import { StaticLogger } from './static-logger';
+import { ConfigLoader} from './config';
 
 
 export interface eventCallback { (event: any): void }
@@ -23,7 +24,8 @@ export class MusiccastEventListener {
     }
 
     constructor() {
-        this.port = 41100;
+        let config = ConfigLoader.Config()
+        this.port = config.udpPort;
         this.isListening = false;
         this.server = createSocket("udp4");
         this.server.on('listening', () => this.serverListening());
