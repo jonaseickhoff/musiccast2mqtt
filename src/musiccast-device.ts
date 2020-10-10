@@ -111,15 +111,11 @@ export class MusiccastDevice {
 
     public async pollDevice(): Promise<void> {
         if (this.isInitalized) {
-            try {
-                for (const zone of this._features.zone) {
-                    await this.updateStatus(zone.id);
-                }
-                await this.updateStereoPairInfo();
-                await this.updateDistributionInfo();
-            } catch (error) {
-                this.log.error("{device_id}: Error polling device status {error}", this.device_id, error)
+            for (const zone of this._features.zone) {
+                await this.updateStatus(zone.id);
             }
+            await this.updateStereoPairInfo();
+            await this.updateDistributionInfo();
         }
     }
 
@@ -164,68 +160,84 @@ export class MusiccastDevice {
     }
 
     public async updateStatus(zoneId: McZoneId): Promise<void> {
-        this.status[zoneId] = await this.getStatus(zoneId);
-        this.publishUpdate(this, `${zoneId}/status`, this.status[zoneId]);
-        this.parseStatusPart(zoneId, this.status[zoneId]);
+        try {
+            this.status[zoneId] = await this.getStatus(zoneId);
+            this.publishUpdate(this, `${zoneId}/status`, this.status[zoneId]);
+            this.parseStatusPart(zoneId, this.status[zoneId]);
+        } catch (error) {
+            this.log.error("{device_id}: Error polling device status in zone {zone}. Error: {error}", this.device_id, zoneId, error)
+        }
     }
 
     public async updateDistributionInfo(): Promise<void> {
-        this._distributionInfos = await this.getDistributionInfo();
-        this.publishUpdate(this, `distributionInfo`, this._distributionInfos);
+        try {
+            this._distributionInfos = await this.getDistributionInfo();
+            this.publishUpdate(this, `distributionInfo`, this._distributionInfos);
 
-        let clientsWithoutSlaves: MusiccastDevice[] = [];
-        for (const client of this._distributionInfos.client_list) {
-            const device: MusiccastDevice = Object.values(MusiccastToMqtt.mcDevices).find(d => d.ip === client.ip_address);
-            if (device) {
-                if (!device.isSlave)
-                    clientsWithoutSlaves = [...clientsWithoutSlaves, device];
+            let clientsWithoutSlaves: MusiccastDevice[] = [];
+            for (const client of this._distributionInfos.client_list) {
+                const device: MusiccastDevice = Object.values(MusiccastToMqtt.mcDevices).find(d => d.ip === client.ip_address);
+                if (device) {
+                    if (!device.isSlave)
+                        clientsWithoutSlaves = [...clientsWithoutSlaves, device];
+                }
+                else {
+                    this.log.warn("Unknown client in distributionInfos.client_list {ip}", client.ip_address);
+                }
+            }
+            if (this._distributionInfos.role === McGroupRole.Server ||
+                (this._distributionInfos.role === McGroupRole.None && clientsWithoutSlaves.length > 0)) {
+                this._role = McGroupRole.Server
+                this._linkedDevices = clientsWithoutSlaves;
+            }
+            else if (this._distributionInfos.role === McGroupRole.Client && !this.isGroupIdEmpty()) {
+                this._role = McGroupRole.Client;
+                let server: MusiccastDevice = Object.values(MusiccastToMqtt.mcDevices).find(d => d.distributionInfos && d.distributionInfos.group_id == this.distributionInfos.group_id && d.role === McGroupRole.Server)
+                if (server) {
+                    this._linkedDevices = [server];
+                } else {
+                    this.log.warn("cannot find server for group id {id}", this.distributionInfos.group_id)
+                    this._linkedDevices = [];
+                }
             }
             else {
-                this.log.warn("Unknown client in distributionInfos.client_list {ip}", client.ip_address);
-            }
-        }
-        if (this._distributionInfos.role === McGroupRole.Server ||
-            (this._distributionInfos.role === McGroupRole.None && clientsWithoutSlaves.length > 0)) {
-            this._role = McGroupRole.Server
-            this._linkedDevices = clientsWithoutSlaves;
-        }
-        else if (this._distributionInfos.role === McGroupRole.Client && !this.isGroupIdEmpty()) {
-            this._role = McGroupRole.Client;
-            let server: MusiccastDevice = Object.values(MusiccastToMqtt.mcDevices).find(d => d.distributionInfos && d.distributionInfos.group_id == this.distributionInfos.group_id && d.role === McGroupRole.Server)
-            if (server) {
-                this._linkedDevices = [server];
-            }else{
-                this.log.warn("cannot find server for group id {id}", this.distributionInfos.group_id)
+                // group id can be 00000000000000000000000000000000 when input is mc_link. In this case McGroupRole is "client" although not linked to any server device
+                this._role = McGroupRole.None;
                 this._linkedDevices = [];
             }
-        }
-        else {
-            // group id can be 00000000000000000000000000000000 when input is mc_link. In this case McGroupRole is "client" although not linked to any server device
-            this._role = McGroupRole.None;
-            this._linkedDevices = [];
-        }
 
-        this.publishUpdate(this, `link/role`, this._role);
-        let devices: string[];
-        if (this.useFriendlyNames) {
-            devices = this._linkedDevices.map(d => d.name);
-        } else {
-            devices = this._linkedDevices.map(d => d.device_id);
+            this.publishUpdate(this, `link/role`, this._role);
+            let devices: string[];
+            if (this.useFriendlyNames) {
+                devices = this._linkedDevices.map(d => d.name);
+            } else {
+                devices = this._linkedDevices.map(d => d.device_id);
+            }
+            this.publishUpdate(this, `link/devices`, devices);
+        } catch (error) {
+            this.log.error("{device_id}: Error update distribution infos {error}", this.device_id, error)
         }
-        this.publishUpdate(this, `link/devices`, devices);
     }
 
 
     private async updateStereoPairInfo(): Promise<void> {
-        this._stereoPairInfos = await this.getStereoPairInfo();
-        this.publishUpdate(this, `stereoPairInfo`, this._stereoPairInfos);
+        try {
+            this._stereoPairInfos = await this.getStereoPairInfo();
+            this.publishUpdate(this, `stereoPairInfo`, this._stereoPairInfos);
+        } catch (error) {
+            this.log.error("{device_id}: Error update stereo pair info. Error: {error}", this.device_id, error)
+        }
     }
 
     private async updateNetworkStatus(): Promise<void> {
-        let networkStatus = await this.getNetworkStatus();
-        this.log.debug("{device_id} NetworkStatus: {networkStatus}", this.device_id, networkStatus);
-        this.name = networkStatus.network_name;
-        this.publishUpdate(this, `networkStatus`, networkStatus);
+        try {
+            let networkStatus = await this.getNetworkStatus();
+            this.log.debug("{device_id} NetworkStatus: {networkStatus}", this.device_id, networkStatus);
+            this.name = networkStatus.network_name;
+            this.publishUpdate(this, `networkStatus`, networkStatus);
+        } catch (error) {
+            this.log.error("{device_id}: Error update network status. Error: {error}", this.device_id, error)
+        }
     }
 
     public isGroupIdEmpty(): boolean {
@@ -334,6 +346,7 @@ export class MusiccastDevice {
             }
         } catch (error) {
             this.log.error("Error SendGetToDevice deviceId: '{deviceId}' error: '{error}'", this.device_id, error)
+            throw error;
         }
     };
 
@@ -361,6 +374,7 @@ export class MusiccastDevice {
             }
         } catch (error) {
             this.log.error("Error SendPostToDevice deviceId: '{deviceId}' cmd: '{cmd}' data: '{data}' error: '{error}'", this.device_id, cmd, data, error)
+            throw error;
         }
     };
 
