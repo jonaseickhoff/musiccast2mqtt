@@ -1,43 +1,35 @@
 
 import { StaticLogger } from './static-logger';
 import mqtt, { MqttClient, IClientPublishOptions } from 'mqtt';
-import { Config } from './config';
-import { MusiccastDiscoverer, DiscoveredMusiccastDevice } from './musiccast-discoverer';
+import { ConfigLoader } from './config'
 import { setTimeout, clearTimeout } from 'timers';
 import { MusiccastDevice } from './musiccast-device';
-import { McZoneId } from './musiccast-features';
 import { MusiccastEventListener } from './musiccast-event-listener';
+import { IDeviceUpdatedListener, MusiccastDeviceManager } from './musiccast-device-manager';
 
 
-export class MusiccastToMqtt {
+export class MusiccastToMqtt implements IDeviceUpdatedListener {
     private readonly log = StaticLogger.CreateLoggerForSource('Musiccast2mqtt.main');
-    private readonly mcDiscoverer = new MusiccastDiscoverer();
-
     private readonly mqtt_uri: string;
     private readonly mqtt_prefix: string;
     private readonly mqtt_insecure: boolean;
     private readonly mqtt_retain: boolean;
-    private readonly pollingInterval: number;
-    private readonly useFriendlyNames: boolean;
+
+    private readonly deviceManager: MusiccastDeviceManager;
     private mqttClient?: MqttClient;
     private mqttConnected: boolean;
-    private pollingTimeout: NodeJS.Timeout;
 
-    public static readonly mcDevices: { [device_id: string]: MusiccastDevice } = {};
-
-    constructor(private config: Config) {
+    constructor() {
+        let config = ConfigLoader.Config()
         this.mqtt_uri = config.mqtt;
         this.mqtt_prefix = config.prefix;
         this.mqtt_insecure = config.insecure;
         this.mqtt_retain = config.mqttRetain;
         this.mqttConnected = false;
-        this.useFriendlyNames = config.friendlynames === 'name';
-
-        this.createDevicesFromIps(config.devices);
-
-        if (config.pollingInterval > 0) {
-            this.pollingInterval = config.pollingInterval * 1000;
-            this.pollingTimeout = setTimeout(() => this.pollDeviceStatus(), this.pollingInterval);
+        this.deviceManager = MusiccastDeviceManager.getInstance();
+        this.deviceManager.subscribe(this);
+        for (const device of config.devices) {
+            this.deviceManager.createDeviceFromIp(device)
         }
     }
 
@@ -49,18 +41,8 @@ export class MusiccastToMqtt {
 
     public stop(): void {
         MusiccastEventListener.DefaultInstance.StopListener();
-        clearTimeout(this.pollingTimeout);
+        this.deviceManager.dispose();
         this.mqttClient?.end()
-    }
-
-    public deviceUpdated(device: MusiccastDevice, topic: string, payload: any): void {
-        let deviceName: string;
-        if (this.useFriendlyNames) {
-            deviceName = device.name;
-        } else {
-            deviceName = device.device_id;
-        }
-        this.publish(`${deviceName}/${topic}`, payload, { retain: this.mqtt_retain, qos: 0 });
     }
 
     private connect(): void {
@@ -129,24 +111,12 @@ export class MusiccastToMqtt {
                                 }
                                 break;
                             default:
-                                if (this.useFriendlyNames) {
-                                    const device: MusiccastDevice | undefined = Object.values(MusiccastToMqtt.mcDevices).find(d => d.name === topics[2])
-                                    if (device !== undefined) {
-                                        device.setMqtt(topic, payload);
-                                    }
-                                    else {
-                                        this.log.error('unknown {2}', topics[2]);
-
-                                    }
+                                let device: MusiccastDevice = this.deviceManager.getDeviceById(topics[2]);
+                                if (device !== undefined) {
+                                    device.setMqtt(topic, payload);
                                 }
                                 else {
-                                    if (topics[2] in MusiccastToMqtt.mcDevices) {
-                                        let device: MusiccastDevice = MusiccastToMqtt.mcDevices[topics[2]]
-                                        device.setMqtt(topic, payload);
-                                    }
-                                    else {
-                                        this.log.error('unknown {2}', topics[2]);
-                                    }
+                                    this.log.error('unknown {2}', topics[2]);
                                 }
                         };
                         break;
@@ -157,6 +127,11 @@ export class MusiccastToMqtt {
                 this.log.error("Error while receiving mqtt message: {error}", error)
             }
         });
+    }
+    private async discover(): Promise<void> {
+        this.publish('discover', { lastDiscover: new Date().toISOString(), discovering: true }, { retain: this.mqtt_retain, qos: 0 });
+        let devices: string[] = await this.deviceManager.discover();
+        this.publish('discover', { lastDiscover: new Date().toISOString(), discovering: false, discoveredDevices: devices }, { retain: this.mqtt_retain, qos: 0 });
     }
 
     private publish(topic: string, payload: string | any, options: IClientPublishOptions = {} as IClientPublishOptions): void {
@@ -171,43 +146,7 @@ export class MusiccastToMqtt {
         this.mqttClient?.publish(topic, payload, options)
     }
 
-
-    private async pollDeviceStatus(): Promise<void> {
-        this.log.debug("Poll Musiccast device status.")
-        try {
-            await Promise.all(Object.values(MusiccastToMqtt.mcDevices).map(async (device) => {
-                await device.pollDevice();
-            }));
-        }
-        catch (error) {
-            this.log.error("Error polling Musiccast device status: {error}", error);
-        }
-        this.pollingTimeout = setTimeout(() => this.pollDeviceStatus(), this.pollingInterval);
-    }
-
-    private async discover(): Promise<void> {
-        this.publish('discover', { lastDiscover: new Date().toISOString(), discovering: true }, { retain: this.mqtt_retain, qos: 0 });
-        let devices: DiscoveredMusiccastDevice[] = await this.mcDiscoverer.discover(15000);
-        this.publish('discover', { lastDiscover: new Date().toISOString(), discovering: false, discoveredDevices: devices }, { retain: this.mqtt_retain, qos: 0 });
-
-        devices.forEach(device => {
-            if (device.device_id in MusiccastToMqtt.mcDevices) {
-                this.log.debug("Update Musiccast device: {device}", JSON.stringify(device));
-                MusiccastToMqtt.mcDevices[device.device_id].ip = device.ip;
-                MusiccastToMqtt.mcDevices[device.device_id].name = device.name;
-                MusiccastToMqtt.mcDevices[device.device_id].model = device.model;
-            }
-            else {
-                this.log.debug("Add new Musiccast device: {device}", JSON.stringify(device));
-                MusiccastToMqtt.mcDevices[device.device_id] = new MusiccastDevice(device.device_id, device.ip, device.model, (device, topic, payload) => this.deviceUpdated(device, topic, payload));
-            }
-        });
-    }
-
-    private async createDevicesFromIps(devices: string[]) {
-        for (const device of devices) {
-            let mcDevice = await MusiccastDevice.fromIp(device, (device, topic, payload) => this.deviceUpdated(device, topic, payload));
-            MusiccastToMqtt.mcDevices[mcDevice.device_id] = mcDevice;
-        }
+    public onDeviceUpdated(deviceId: string, topic: string, payload: any): void {
+        this.publish(`${deviceId}/${topic}`, payload, { retain: this.mqtt_retain, qos: 0 });
     }
 }

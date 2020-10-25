@@ -2,12 +2,14 @@ import { StaticLogger } from './static-logger'
 import { MusiccastDevice } from './musiccast-device'
 import { MusiccastToMqtt } from './musiccast-to-mqtt'
 import { McGroupRole, McInputId, McLinkedClient, McZoneId } from './musiccast-features'
+import { MusiccastDeviceManager } from './musiccast-device-manager';
 
 export class MusiccastGroupMananger {
 
     private static instance: MusiccastGroupMananger;
     private readonly log = StaticLogger.CreateLoggerForSource('MusiccastGroupMananger.main');
-
+    private readonly mcDeviceManager = MusiccastDeviceManager.getInstance();
+    
     private constructor() {
     }
 
@@ -18,22 +20,22 @@ export class MusiccastGroupMananger {
         return MusiccastGroupMananger.instance;
     }
 
-    public async link(server_id: string, client_ids: string[]): Promise<void> {
-        await this.linkDevices(MusiccastToMqtt.mcDevices[server_id], client_ids.map(id => MusiccastToMqtt.mcDevices[id]));
+    public async linkById(server_id: string, client_ids: string[]): Promise<void> {
+        await this.link(this.mcDeviceManager.getDeviceById(server_id), client_ids.map(id => this.mcDeviceManager.getDeviceById(id)));
     }
 
-    public async unlink(server_id: string, client_ids: string[]): Promise<void> {
-        await this.unlinkDevices(MusiccastToMqtt.mcDevices[server_id], client_ids.map(id => MusiccastToMqtt.mcDevices[id]));
+    public async unlinkById(server_id: string, client_ids: string[]): Promise<void> {
+        await this.unlink(this.mcDeviceManager.getDeviceById(server_id), client_ids.map(id => this.mcDeviceManager.getDeviceById(id)));
     }
 
-    private async linkDevices(server_device: MusiccastDevice, client_devices: MusiccastDevice[]): Promise<void> {
+    private async link(server_device: MusiccastDevice, client_devices: MusiccastDevice[]): Promise<void> {
         let createNewGroup: boolean = true;
         let server_groupId: string;
         if (server_device.role === McGroupRole.Client) {
             // could be a problem, because after unlinking input is mc_link. mc_link cannot be distributed. The input needs to be changed before becoming a server
             this.log.debug("server_device {device} is a client", server_device.device_id)
             await this.unlinkFromServer(server_device);
-           // await server_device.setInput(McInputId.NONE, McZoneId.Main);
+            // await server_device.setInput(McInputId.NONE, McZoneId.Main);
             await server_device.updateDistributionInfo();
         }
         if (server_device.role === McGroupRole.None || server_device.isGroupIdEmpty()) {
@@ -77,11 +79,9 @@ export class MusiccastGroupMananger {
         }
 
 
-        for (const group_id of Object.keys(wronglinkedDevices)) {
-            // get server device of group_id and unlink selected devices
-            let server_device = Object.values(MusiccastToMqtt.mcDevices).find(d => d.distributionInfos.role === McGroupRole.Server &&
-                d.distributionInfos.group_id == group_id)
-            await this.unlinkDevices(server_device, wronglinkedDevices[group_id])
+        for (const clientsToUnlink of Object.values(wronglinkedDevices)) {
+            let server_device = clientsToUnlink[0].linkedServer;
+            await this.unlink(server_device, clientsToUnlink)
         }
 
         for (const client_device of unlinkedDevices) {
@@ -99,10 +99,8 @@ export class MusiccastGroupMananger {
 
     private async unlinkFromServer(client_device: MusiccastDevice): Promise<void> {
         if (client_device.role === McGroupRole.Client) {
-            const group_id = client_device.distributionInfos.group_id;
-            const server_device = Object.values(MusiccastToMqtt.mcDevices).find(d => d.distributionInfos.role === McGroupRole.Server &&
-                d.distributionInfos.group_id == group_id)
-            await this.unlinkDevices(server_device, [client_device]);
+            const server_device = client_device.linkedServer;
+            await this.unlink(server_device, [client_device]);
 
         } else {
             this.log.info("device is no client");
@@ -110,12 +108,12 @@ export class MusiccastGroupMananger {
     }
 
     private async unlinkAllClients(server_device: MusiccastDevice): Promise<void> {
-        await this.unlinkDevices(server_device, server_device.linkedDevices);
+        await this.unlink(server_device, server_device.linkedClients);
     }
 
-    private async unlinkDevices(server_device: MusiccastDevice, client_devices: MusiccastDevice[]): Promise<void> {
+    public async unlink(server_device: MusiccastDevice, client_devices: MusiccastDevice[]): Promise<void> {
         // filter only connected devices
-        client_devices = client_devices.filter(d => server_device.linkedDevices.includes(d))
+        client_devices = client_devices.filter(d => server_device.linkedClients.includes(d))
 
         // setclient info to "" for leaving group
         for (const client_device of client_devices) {
@@ -126,7 +124,7 @@ export class MusiccastGroupMananger {
 
 
         // last device unlinked from server -> delete group
-        let deleteGroup: boolean = server_device.linkedDevices.length - client_devices.length === 0
+        let deleteGroup: boolean = server_device.linkedClients.length - client_devices.length === 0
 
         let groupId: string = deleteGroup ? "" : server_device.distributionInfos.group_id;
 
@@ -143,7 +141,7 @@ export class MusiccastGroupMananger {
 
 
     private async setGroupName(server_device: MusiccastDevice): Promise<void> {
-        let connectedRooms: number = server_device.linkedDevices.length;
+        let connectedRooms: number = server_device.linkedClients.length;
         let groupName: string = "";
         if (connectedRooms > 0) {
             groupName = `${server_device.name} + ${connectedRooms} ${connectedRooms > 1 ? "Rooms" : "Room"}`;

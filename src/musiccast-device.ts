@@ -1,9 +1,10 @@
 import { MusiccastEventListener } from './musiccast-event-listener';
 import { StaticLogger } from './static-logger';
 import { McDistributionInfo, McFeatures, McGroupRole, McZoneId, McStereoPairInfo, McResponseCode } from './musiccast-features';
-import { MusiccastGroupMananger } from './musiccast-groupmanager';
+import { MusiccastGroupMananger } from './musiccast-group-manager';
 import { MusiccastToMqtt } from './musiccast-to-mqtt';
 import { ConfigLoader } from './config'
+import { MusiccastDeviceManager } from './musiccast-device-manager';
 
 
 var Promise = require("bluebird");
@@ -12,6 +13,7 @@ Promise.promisifyAll(request);
 
 
 interface updateCallback { (device: MusiccastDevice, topic: string, payload: any): void }
+
 
 export class MusiccastDevice {
 
@@ -49,7 +51,8 @@ export class MusiccastDevice {
     private _distributionInfos: McDistributionInfo;
     private _stereoPairInfos: McStereoPairInfo;
     private _role: McGroupRole = McGroupRole.None;
-    private _linkedDevices: MusiccastDevice[] = [];
+    private _linkedClients: MusiccastDevice[] = [];
+    private _linkedServer: MusiccastDevice = null;
 
 
     private status: any = {};
@@ -98,7 +101,7 @@ export class MusiccastDevice {
      */
     get master(): MusiccastDevice {
         if (this.isSlave)
-            return Object.values(MusiccastToMqtt.mcDevices).find(d => d.ip === this._stereoPairInfos.pair_info.ip_address);
+            return MusiccastDeviceManager.getInstance().getDeviceByIp(this._stereoPairInfos.pair_info.ip_address)
         else
             return undefined;
     }
@@ -107,8 +110,12 @@ export class MusiccastDevice {
         return this._role;
     }
 
-    get linkedDevices(): MusiccastDevice[] {
-        return this._linkedDevices;
+    get linkedClients(): MusiccastDevice[] {
+        return this._linkedClients;
+    }
+
+    get linkedServer(): MusiccastDevice {
+        return this._linkedServer;
     }
 
     public async pollDevice(): Promise<void> {
@@ -140,17 +147,11 @@ export class MusiccastDevice {
                     break;
                 case 'link':
                     var devices = payload;
-                    if (this.useFriendlyNames) {
-                        devices = payload.map(name => Object.values(MusiccastToMqtt.mcDevices).find(d => d.name === name).device_id)
-                    }
-                    MusiccastGroupMananger.getInstance().link(this.device_id, devices)
+                    MusiccastGroupMananger.getInstance().linkById(deviceId, devices)
                     break;
                 case 'unlink':
                     var devices = payload;
-                    if (this.useFriendlyNames) {
-                        devices = payload.map(name => Object.values(MusiccastToMqtt.mcDevices).find(d => d.name === name).device_id)
-                    }
-                    MusiccastGroupMananger.getInstance().unlink(this.device_id, devices)
+                    MusiccastGroupMananger.getInstance().unlinkById(deviceId, devices)
                     break;
                 default:
                     this.log.error("unknown {topic}", topic)
@@ -178,7 +179,7 @@ export class MusiccastDevice {
 
             let clientsWithoutSlaves: MusiccastDevice[] = [];
             for (const client of this._distributionInfos.client_list) {
-                const device: MusiccastDevice = Object.values(MusiccastToMqtt.mcDevices).find(d => d.ip === client.ip_address);
+                const device: MusiccastDevice = MusiccastDeviceManager.getInstance().getDeviceByIp(client.ip_address);
                 if (device) {
                     if (!device.isSlave)
                         clientsWithoutSlaves = [...clientsWithoutSlaves, device];
@@ -190,32 +191,40 @@ export class MusiccastDevice {
             if (this._distributionInfos.role === McGroupRole.Server ||
                 (this._distributionInfos.role === McGroupRole.None && clientsWithoutSlaves.length > 0)) {
                 this._role = McGroupRole.Server
-                this._linkedDevices = clientsWithoutSlaves;
+                this._linkedClients = clientsWithoutSlaves;
+                this._linkedServer = null;
             }
             else if (this._distributionInfos.role === McGroupRole.Client && !this.isGroupIdEmpty()) {
                 this._role = McGroupRole.Client;
-                let server: MusiccastDevice = Object.values(MusiccastToMqtt.mcDevices).find(d => d.distributionInfos && d.distributionInfos.group_id == this.distributionInfos.group_id && d.role === McGroupRole.Server)
+                let server: MusiccastDevice = MusiccastDeviceManager.getInstance().getServerByGroupId(this._distributionInfos?.group_id);
                 if (server) {
-                    this._linkedDevices = [server];
+                    this._linkedServer = server;
                 } else {
                     this.log.warn("cannot find server for group id {id}", this.distributionInfos.group_id)
-                    this._linkedDevices = [];
+                    this._linkedServer = null;
                 }
+                this._linkedClients = [];
             }
             else {
                 // group id can be 00000000000000000000000000000000 when input is mc_link. In this case McGroupRole is "client" although not linked to any server device
                 this._role = McGroupRole.None;
-                this._linkedDevices = [];
+                this._linkedClients = [];
+                this._linkedServer = null;
             }
 
             this.publishUpdate(this, `link/role`, this._role);
-            let devices: string[];
+            let clients: string[];
+            let server: string = "";
             if (this.useFriendlyNames) {
-                devices = this._linkedDevices.map(d => d.name);
+                clients = this._linkedClients.map(d => d.name);
+                server = this._linkedServer == null ? "" : this._linkedServer.name;
             } else {
-                devices = this._linkedDevices.map(d => d.device_id);
+                clients = this._linkedClients.map(d => d.device_id);
+                server = this._linkedServer == null ? "" : this._linkedServer.device_id;
             }
-            this.publishUpdate(this, `link/devices`, devices);
+            this.publishUpdate(this, `link/clients`, clients);
+            this.publishUpdate(this, `link/server`, server);
+
         } catch (error) {
             this.log.error("{device_id}: Error update distribution infos {error}", this.device_id, error)
         }

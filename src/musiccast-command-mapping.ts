@@ -1,14 +1,14 @@
 import { MusiccastDevice } from "./musiccast-device";
 import { MusiccastCommands } from "./musiccast-commands";
+import { MusiccastGroupMananger} from './musiccast-group-manager';
 import { McZoneId } from "./musiccast-features";
 
 export class MusiccastCommandMapping {
 
-
   static async ExecuteCommand(device: MusiccastDevice, command: MusiccastCommands, payload: any, zone: McZoneId = McZoneId.Main): Promise<any> {
     switch(command) {
       case MusiccastCommands.JoinGroup:
-      
+     
       case MusiccastCommands.LeaveGroup:
 
       case MusiccastCommands.Mute:
@@ -45,4 +45,5 @@ export class MusiccastCommandMapping {
         throw new Error(`Command '${command}' not implemented`)
     }
   }
+
 }
