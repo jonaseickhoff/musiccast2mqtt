@@ -18,7 +18,7 @@ LABEL org.label-schema.build-date=$BUILD_DATE \
       org.label-schema.description="Connecting your musiccast speakers to mqtt" \
       org.label-schema.name=musiccast2mqtt \
       org.label-schema.schema-version=1.0 \
-      org.label-schema.url=https://github.com/jeickhoff/musiccast2mqtt/ \
+      org.label-schema.url=https://github.com/jonaseickhoff/musiccast2mqtt/ \
       org.label-schema.version=$BUILD_VERSION \
       org.label-schema.vcs-ref=$VCS_REF
 CMD ["node", "./lib/index.js"]

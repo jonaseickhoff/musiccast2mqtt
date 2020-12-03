@@ -8,7 +8,6 @@ export class StaticLogger {
 
   public static Default(): Logger {
     if(!StaticLogger.instance) {
-      // Logger.levelSwitch.information();
       StaticLogger.instance = new LoggerConfiguration()
         .minLevel(StaticLogger.levelSwitch)
         .writeTo(new ColoredConsoleSink({ includeTimestamps: true }))
