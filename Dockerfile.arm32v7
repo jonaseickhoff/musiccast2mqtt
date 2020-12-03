@@ -14,7 +14,7 @@ RUN npm run build
 FROM arm32v7/node:current-alpine as prod
 
 # Add QEMU
-COPY --from=build qemu-aarch64-static /usr/bin
+COPY --from=build qemu-arm-static /usr/bin
 
 ARG BUILD_DATE=unknown
 ARG BUILD_VERSION=0.0.0-development

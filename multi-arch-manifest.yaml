@@ -1,6 +1,6 @@
 image: jme24/musiccast2mqtt:latest
 manifests:
-  - image: jme24/musiccast2mqttlatest-amd64
+  - image: jme24/musiccast2mqtt:latest-amd64
     platform:
       architecture: amd64
       os: linux
