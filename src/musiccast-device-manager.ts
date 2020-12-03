@@ -69,6 +69,7 @@ export class MusiccastDeviceManager {
     }
 
     public getDeviceById(id: string): MusiccastDevice {
+        id = id.trim();
         let device: MusiccastDevice;
         if (this.useFriendlyNames) {
             device = Object.values(this._mcDevices).find(d => d.name === id)
@@ -80,6 +81,7 @@ export class MusiccastDeviceManager {
     }
 
     public getServerByGroupId(id: string): MusiccastDevice {
+        id = id.trim();
         let device: MusiccastDevice;
         device = Object.values(this._mcDevices).find(d => d.distributionInfos && d.distributionInfos.group_id == id && d.role === McGroupRole.Server)
         return device;

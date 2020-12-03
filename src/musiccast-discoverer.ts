@@ -1,7 +1,7 @@
-import Promise from 'bluebird'
-var request = Promise.promisify(require("@root/request"));
-Promise.promisifyAll(request);
 import { StaticLogger } from './static-logger';
+import Promise from 'bluebird'
+let request = Promise.promisify(require("@root/request"));
+Promise.promisifyAll(request);
 
 
 export interface DiscoveredMusiccastDevice {
@@ -32,9 +32,9 @@ export class MusiccastDiscoverer {
         return new Promise<DiscoveredMusiccastDevice[]>((resolve, reject) => {
             this.log.info('discover musiccast devices');
 
-            var ssdp = require("peer-ssdp");
-            var request = require('@root/request');
-            var peer = ssdp.createPeer();
+            let ssdp = require("peer-ssdp");
+            let request = require('@root/request');
+            let peer = ssdp.createPeer();
             let foundDevices: DiscoveredMusiccastDevice[] = [];
 
             setTimeout(async () => {
@@ -73,7 +73,7 @@ export class MusiccastDiscoverer {
     }
 
     private async GetDeviceInfo(ip: string, model: string, name: string, system_id: string): Promise<DiscoveredMusiccastDevice> {
-        var req = {
+        let req = {
             method: 'GET',
             uri: 'http://' + ip + '/YamahaExtendedControl/v1/system/getDeviceInfo',
             json: true,

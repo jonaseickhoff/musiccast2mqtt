@@ -1,14 +1,13 @@
 import { MusiccastEventListener } from './musiccast-event-listener';
 import { StaticLogger } from './static-logger';
-import { McDistributionInfo, McFeatures, McGroupRole, McZoneId, McStereoPairInfo, McResponseCode } from './musiccast-features';
+import { McDistributionInfo, McFeatures, McGroupRole, McZoneId, McStereoPairInfo, McResponseCode, McInput, McStatus } from './musiccast-features';
 import { MusiccastGroupMananger } from './musiccast-group-manager';
 import { MusiccastToMqtt } from './musiccast-to-mqtt';
 import { ConfigLoader } from './config'
 import { MusiccastDeviceManager } from './musiccast-device-manager';
 
-
-var Promise = require("bluebird");
-var request = Promise.promisify(require("@root/request"));
+import Promise from 'bluebird';
+let request = Promise.promisify(require("@root/request"));
 Promise.promisifyAll(request);
 
 
@@ -53,9 +52,9 @@ export class MusiccastDevice {
     private _role: McGroupRole = McGroupRole.None;
     private _linkedClients: MusiccastDevice[] = [];
     private _linkedServer: MusiccastDevice = null;
+    private _status: { [zone in McZoneId]?: McStatus } = {};
 
 
-    private status: any = {};
     private isInitalized: boolean = false;
     public readonly device_id: string;
     public ip: string;
@@ -118,6 +117,29 @@ export class MusiccastDevice {
         return this._linkedServer;
     }
 
+    get id(): string {
+        if (this.useFriendlyNames)
+            return this.name;
+        else
+            return this.device_id;
+    }
+
+    getVolume(zone: McZoneId): number {
+        return this._status[zone].volume;
+    }
+
+    getVolumeMin(zone: McZoneId): number {
+        return this._features.zone.find(z => z.id === zone)?.range_step.find(r => r.id == "volume")?.min;
+    }
+
+    getVolumeMax(zone: McZoneId): number {
+        return this._features.zone.find(z => z.id === zone)?.range_step.find(r => r.id == "volume")?.max;
+    }
+
+    getVolumeStep(zone: McZoneId): number {
+        return this._features.zone.find(z => z.id === zone)?.range_step.find(r => r.id == "volume")?.step;
+    }
+
     public async pollDevice(): Promise<void> {
         if (this.isInitalized) {
             for (const zone of this._features.zone) {
@@ -128,45 +150,11 @@ export class MusiccastDevice {
         }
     }
 
-    public setMqtt(topic: string, payload) {
-        const [prefix, set, deviceId, param1, param2] = topic.split('/');
-        if (Object.values(McZoneId).includes(<McZoneId>param1)) {
-            let zone: McZoneId = <McZoneId>param1;
-            switch (param2) {
-                case 'power':
-                    this.power(payload, zone);
-                    break;
-                case 'volume':
-                    this.setVolumeTo(payload, zone);
-                    break;
-                case 'mute':
-                    this.mute(payload, zone);
-                    break;
-                case 'input':
-                    this.setInput(payload, zone);
-                    break;
-                case 'link':
-                    var devices = payload;
-                    MusiccastGroupMananger.getInstance().linkById(deviceId, devices)
-                    break;
-                case 'unlink':
-                    var devices = payload;
-                    MusiccastGroupMananger.getInstance().unlinkById(deviceId, devices)
-                    break;
-                default:
-                    this.log.error("unknown {topic}", topic)
-            }
-        }
-        else {
-            this.log.error("wrong topic for device: {device}, topic: {topic}", this.device_id, topic)
-        }
-    }
-
     public async updateStatus(zoneId: McZoneId): Promise<void> {
         try {
-            this.status[zoneId] = await this.getStatus(zoneId);
-            this.publishUpdate(this, `${zoneId}/status`, this.status[zoneId]);
-            this.parseStatusPart(zoneId, this.status[zoneId]);
+            this._status[zoneId] = await this.getStatus(zoneId);
+            this.publishUpdate(this, `${zoneId}/status`, this._status[zoneId]);
+            this.parseStatusPart(zoneId, this._status[zoneId]);
         } catch (error) {
             this.log.error("{device_id}: Error polling device status in zone {zone}. Error: {error}", this.device_id, zoneId, error)
         }
@@ -275,8 +263,8 @@ export class MusiccastDevice {
         this.log.verbose("device {device_id} new event: {message}", this.device_id, JSON.stringify(event));
         for (const zone of this._features.zone) {
             if (zone.id in event) {
-                this.status[zone.id] = { ...this.status[zone.id], ...event[zone.id] };
-                this.publishUpdate(this, `${zone.id}/status`, this.status[zone.id]);
+                this._status[zone.id] = { ...this._status[zone.id], ...event[zone.id] };
+                this.publishUpdate(this, `${zone.id}/status`, this._status[zone.id]);
                 this.parseZoneEvent(zone.id, event[zone.id]);
             }
         }
@@ -320,7 +308,8 @@ export class MusiccastDevice {
             // Returns volume value
             // Values: Value range calculated by minimum/maximum/step
             // values gotten via /system/getFeatures
-            this.publishUpdate(this, `${zone}/volume`, newStatus.volume)
+            let volume = Math.round(newStatus.volume / (this.getVolumeMax(zone) - this.getVolumeMin(zone)) * 100);
+            this.publishUpdate(this, `${zone}/volume`, volume)
         }
         if ('mute' in newStatus) {
             this.publishUpdate(this, `${zone}/mute`, newStatus.mute)
@@ -391,8 +380,8 @@ export class MusiccastDevice {
 
     //-------------Zone related comands----------
 
-    public async power(on, zone: McZoneId) {
-        let command = '/' + zone + '/setPower?power=' + ((on === 'on' || on === true || on === 'true') ? 'on' : 'standby');
+    public async power(on: boolean, zone: McZoneId) {
+        let command = '/' + zone + '/setPower?power=' + (on ? 'on' : 'standby');
         return this.SendGetToDevice(command);
     };
     public async powerOn(zone: McZoneId) {
@@ -401,6 +390,10 @@ export class MusiccastDevice {
     };
     public async powerOff(zone: McZoneId) {
         let command = '/' + zone + '/setPower?power=standby';
+        return this.SendGetToDevice(command);
+    };
+    public async powerToggle(zone: McZoneId) {
+        let command = '/' + zone + '/setPower?power=toggle';
         return this.SendGetToDevice(command);
     };
     public async sleep(val, zone: McZoneId) {

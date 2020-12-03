@@ -60,6 +60,39 @@ export interface McZone {
     range_step: [McRangeStep];
 }
 
+export interface McStatus {
+    /** Returns power status */
+    power: "on" | "standby",
+    /** Returns Sleep Timer steup value (unit in minutes) */
+    sleep: number,
+    /** Return volume value 
+     * Value Range: calculated by minimum/maximum/step values gotten via /system/getFeatures
+     */
+    volume: number,
+    /** Returns mute status */
+    mute: boolean,
+    /** Returns Max Volume setup
+     * Value Range: calculated by minimum/maximum/step values gotten via /system/getFeatures
+     */
+    max_volume: number,
+    /** Returns selected Input ID */
+    input: McInputId,
+    /** Return wether or not current Input is distributable status */
+    distribution_enable: boolean,
+    /** Returns selected Sound Program ID
+     *  Values: Sound Program IDs gotten via /system/getFeatures
+     */
+    sound_program: string,
+    /** Returns 3D Surround status */ 
+    surround_3d: boolean,
+    /** Returns Direct status */
+    direct: boolean,
+    /** Returns Pure Direct status */
+    pure_direct: boolean,
+    /** Returns Enhancer status */
+    enhancer: boolean,
+}
+
 export interface McDistributionInfo {
     /** Returns Group ID in 32-digit hex */
     group_id: string;

@@ -2,13 +2,16 @@
 import { StaticLogger } from './static-logger';
 import mqtt, { MqttClient, IClientPublishOptions } from 'mqtt';
 import { ConfigLoader } from './config'
-import { setTimeout, clearTimeout } from 'timers';
 import { MusiccastDevice } from './musiccast-device';
 import { MusiccastEventListener } from './musiccast-event-listener';
 import { IDeviceUpdatedListener, MusiccastDeviceManager } from './musiccast-device-manager';
+import { MusiccastCommands } from './musiccast-commands';
+import { MusiccastCommandMapping } from './musiccast-command-mapping';
+import { McZoneId } from './musiccast-features';
 
 
 export class MusiccastToMqtt implements IDeviceUpdatedListener {
+    
     private readonly log = StaticLogger.CreateLoggerForSource('Musiccast2mqtt.main');
     private readonly mqtt_uri: string;
     private readonly mqtt_prefix: string;
@@ -43,6 +46,10 @@ export class MusiccastToMqtt implements IDeviceUpdatedListener {
         MusiccastEventListener.DefaultInstance.StopListener();
         this.deviceManager.dispose();
         this.mqttClient?.end()
+    }
+
+    public onDeviceUpdated(deviceId: string, topic: string, payload: any): void {
+        this.publish(`${deviceId}/${topic}`, payload, { retain: this.mqtt_retain, qos: 0 });
     }
 
     private connect(): void {
@@ -83,51 +90,56 @@ export class MusiccastToMqtt implements IDeviceUpdatedListener {
 
         this.mqttClient.on('message', (topic, payload: any) => {
             this.log.debug('mqtt <', topic, payload);
+
             try {
-                payload = payload.toString();
-                if (payload.indexOf('{') !== -1 || payload.indexOf('[') !== -1) {
-                    try {
-                        payload = JSON.parse(payload);
-                    } catch (err) {
-                        this.log.error(err.toString());
-                    }
-                } else if (payload === 'false') {
-                    payload = false;
-                } else if (payload === 'true') {
-                    payload = true;
-                } else if (!isNaN(payload)) {
-                    payload = parseFloat(payload);
-                }
+                const parts: string[] = topic.replace(`${this.mqtt_prefix}/`, '').split('/')
 
+                payload = this.parsePayload(payload.toString());
 
-                const topics: string[] = topic.split('/');
-
-                switch (topics[1]) {
+                switch (parts[0]) {
                     case 'set':
-                        switch (topics[2]) {
+                        switch (parts[1]) {
                             case 'discover':
                                 if (payload === 1) {
                                     this.discover();
                                 }
                                 break;
                             default:
-                                let device: MusiccastDevice = this.deviceManager.getDeviceById(topics[2]);
+                                let device: MusiccastDevice = this.deviceManager.getDeviceById(parts[1]);
                                 if (device !== undefined) {
-                                    device.setMqtt(topic, payload);
+
+                                    let zone = parts[2];
+                                    let mcZone: McZoneId;
+                                    if (zone !== undefined && Object.values(McZoneId).some(v => v === zone.toLowerCase())) {
+                                        mcZone = zone.toLowerCase() as McZoneId;
+                                    }
+
+                                    let command = parts[3];
+                                    let mcCommand: MusiccastCommands;
+                                    if (command !== undefined && Object.values(MusiccastCommands).some(v => v === command.toLowerCase())) {
+                                        mcCommand = command.toLowerCase() as MusiccastCommands;
+                                    }
+
+                                    if (mcCommand !== undefined && mcZone !== undefined)
+                                        MusiccastCommandMapping.ExecuteCommand(device, mcCommand, payload, mcZone);
+                                    else {
+                                        this.log.error('unknown topic {topic}/{topic}', parts[2], parts[3]);
+                                    }
                                 }
                                 else {
-                                    this.log.error('unknown {2}', topics[2]);
+                                    this.log.error('unknown topic {topic}', parts[1]);
                                 }
                         };
                         break;
                     default:
-                        this.log.error('unknown {1}', topics[1]);
+                        this.log.error('unknown topic {0}', parts[0]);
                 }
             } catch (error) {
                 this.log.error("Error while receiving mqtt message: {error}", error)
             }
         });
     }
+
     private async discover(): Promise<void> {
         this.publish('discover', { lastDiscover: new Date().toISOString(), discovering: true }, { retain: this.mqtt_retain, qos: 0 });
         let devices: string[] = await this.deviceManager.discover();
@@ -146,7 +158,16 @@ export class MusiccastToMqtt implements IDeviceUpdatedListener {
         this.mqttClient?.publish(topic, payload, options)
     }
 
-    public onDeviceUpdated(deviceId: string, topic: string, payload: any): void {
-        this.publish(`${deviceId}/${topic}`, payload, { retain: this.mqtt_retain, qos: 0 });
+      private parsePayload(payload: string | undefined): any | number | undefined | boolean {
+        if (payload === undefined) return;
+        if (payload === '') return '';
+        if (payload === 'false') return false;
+        if (payload === 'true') return true;
+        if (isNaN(Number(payload)) === false) return Number(payload);
+        try {
+            return JSON.parse(payload)
+        } catch {
+        }
+        return payload
     }
 }

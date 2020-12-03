@@ -3,13 +3,14 @@ import { MusiccastDevice } from './musiccast-device'
 import { MusiccastToMqtt } from './musiccast-to-mqtt'
 import { McGroupRole, McInputId, McLinkedClient, McZoneId } from './musiccast-features'
 import { MusiccastDeviceManager } from './musiccast-device-manager';
+import { MusiccastCommandMapping } from './musiccast-command-mapping';
 
 export class MusiccastGroupMananger {
 
     private static instance: MusiccastGroupMananger;
     private readonly log = StaticLogger.CreateLoggerForSource('MusiccastGroupMananger.main');
     private readonly mcDeviceManager = MusiccastDeviceManager.getInstance();
-    
+
     private constructor() {
     }
 
@@ -28,14 +29,38 @@ export class MusiccastGroupMananger {
         await this.unlink(this.mcDeviceManager.getDeviceById(server_id), client_ids.map(id => this.mcDeviceManager.getDeviceById(id)));
     }
 
+    public async setLinksById(server_id: string, client_ids: string[]): Promise<void> {
+        await this.setLinks(this.mcDeviceManager.getDeviceById(server_id), client_ids.map(id => this.mcDeviceManager.getDeviceById(id)));
+    }
+
+    public async setLinks(server_device: MusiccastDevice, client_devices: MusiccastDevice[]): Promise<void> {
+        let linkedClients = server_device.linkedClients;
+        let removedClients = linkedClients.filter(d => !client_devices.includes(d));
+        let addedClients = client_devices.filter(d => !linkedClients.includes(d));
+        if (removedClients.length > 0)
+            await this.unlink(server_device, removedClients);
+        if (addedClients.length > 0)
+            await this.link(server_device, addedClients);
+    }
+
     private async link(server_device: MusiccastDevice, client_devices: MusiccastDevice[]): Promise<void> {
+        if (typeof (server_device) === 'undefined') {
+            this.log.warn("link() server_device is undefined");
+            return;
+        }
+
+        client_devices = client_devices.filter(d => typeof (d) !== 'undefined');
+        if (client_devices.length === 0) {
+            this.log.warn("link() client_devices length === 0");
+            return;
+        }
+
         let createNewGroup: boolean = true;
         let server_groupId: string;
         if (server_device.role === McGroupRole.Client) {
             // could be a problem, because after unlinking input is mc_link. mc_link cannot be distributed. The input needs to be changed before becoming a server
             this.log.debug("server_device {device} is a client", server_device.device_id)
             await this.unlinkFromServer(server_device);
-            // await server_device.setInput(McInputId.NONE, McZoneId.Main);
             await server_device.updateDistributionInfo();
         }
         if (server_device.role === McGroupRole.None || server_device.isGroupIdEmpty()) {
@@ -97,7 +122,11 @@ export class MusiccastGroupMananger {
         await this.setGroupName(server_device);
     }
 
-    private async unlinkFromServer(client_device: MusiccastDevice): Promise<void> {
+    public async unlinkFromServer(client_device: MusiccastDevice): Promise<void> {
+        if (typeof (client_device) === 'undefined') {
+            this.log.warn("unlinkFromServer() client_device is undefined");
+            return;
+        }
         if (client_device.role === McGroupRole.Client) {
             const server_device = client_device.linkedServer;
             await this.unlink(server_device, [client_device]);
@@ -112,6 +141,17 @@ export class MusiccastGroupMananger {
     }
 
     public async unlink(server_device: MusiccastDevice, client_devices: MusiccastDevice[]): Promise<void> {
+        if (typeof (server_device) === 'undefined') {
+            this.log.warn("unlink() server_device is undefined");
+            return;
+        }
+
+        client_devices = client_devices.filter(d => typeof (d) !== 'undefined');
+        if (client_devices.length === 0) {
+            this.log.warn("unlink() client_devices length === 0");
+            return;
+        }
+
         // filter only connected devices
         client_devices = client_devices.filter(d => server_device.linkedClients.includes(d))
 
