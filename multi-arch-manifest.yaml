@@ -1,0 +1,21 @@
+image: jme24/musiccast2mqtt:latest
+manifests:
+  - image: jme24/musiccast2mqttlatest-amd64
+    platform:
+      architecture: amd64
+      os: linux
+  - image: jme24/musiccast2mqtt:latest-arm64v8
+    platform:
+      architecture: arm64
+      os: linux
+      variant: v8
+  - image: jme24/musiccast2mqtt:latest-arm32v7
+    platform:
+      architecture: arm
+      os: linux
+      variant: v7
+  - image: jme24/musiccast2mqtt:latest-arm32v6
+    platform:
+      architecture: arm
+      os: linux
+      variant: v6

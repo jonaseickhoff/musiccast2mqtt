@@ -1,0 +1,35 @@
+FROM alpine AS qemu
+
+#QEMU Download
+ENV QEMU_URL https://github.com/balena-io/qemu/releases/download/v3.0.0%2Bresin/qemu-3.0.0+resin-arm.tar.gz
+RUN apk add curl && curl -L ${QEMU_URL} | tar zxvf - -C . --strip-components 1
+
+FROM arm32v6/node:current-alpine as build
+# Add QEMU
+COPY --from=qemu qemu-aarch64-static /usr/bin
+
+# Build Nodejs
+WORKDIR /usr/src/app
+COPY package*.json tsconfig.json ./
+RUN npm ci
+COPY ./src ./src
+RUN npm run build
+
+# Copy to production container
+FROM arm32v6/node:current-alpine as prod
+ARG BUILD_DATE=unknown
+ARG BUILD_VERSION=0.0.0-development
+ARG VCS_REF=not-set
+ENV MUSICCAST2MQTT_RUNNING_IN_CONTAINER=true
+WORKDIR /usr/src/app
+COPY package*.json ./
+RUN npm ci --only=production
+COPY --from=build /usr/src/app/lib/*.js /usr/src/app/lib/
+LABEL org.label-schema.build-date=$BUILD_DATE \
+      org.label-schema.description="Connecting your musiccast speakers to mqtt" \
+      org.label-schema.name=musiccast2mqtt \
+      org.label-schema.schema-version=1.0 \
+      org.label-schema.url=https://github.com/jonaseickhoff/musiccast2mqtt/ \
+      org.label-schema.version=$BUILD_VERSION \
+      org.label-schema.vcs-ref=$VCS_REF
+CMD ["node", "./lib/index.js"]

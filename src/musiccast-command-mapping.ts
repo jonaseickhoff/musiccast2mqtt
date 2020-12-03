@@ -37,7 +37,7 @@ export class MusiccastCommandMapping {
         await MusiccastGroupMananger.getInstance().unlinkById(device.id, removedClients);
         break;
 
-      case MusiccastCommands.SetClients:
+      case MusiccastCommands.Clients:
         let clients: string[]
         if (payloadIsString) {
           clients = payload.split(',').filter((c: string) => c !== '');
@@ -45,6 +45,16 @@ export class MusiccastCommandMapping {
           clients = payload;
         }
         await MusiccastGroupMananger.getInstance().setLinksById(device.id, clients);
+        break;
+
+      case MusiccastCommands.Server:
+        if (payloadIsString) {
+          if (payload.trim() === '') {
+            await MusiccastGroupMananger.getInstance().unlinkFromServer(device);
+          } else {
+            await MusiccastGroupMananger.getInstance().linkById(payload, [device.id]);
+          }
+        }
         break;
 
       case MusiccastCommands.Next:
