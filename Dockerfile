@@ -1,4 +1,6 @@
 FROM node:current-alpine as build
+
+# Build Nodejs Application
 WORKDIR /usr/src/app
 COPY package*.json tsconfig.json ./
 RUN npm ci

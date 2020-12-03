@@ -1,22 +1,21 @@
-FROM alpine AS qemu
+FROM node:current-alpine AS build
 
 #QEMU Download
 ENV QEMU_URL https://github.com/balena-io/qemu/releases/download/v3.0.0%2Bresin/qemu-3.0.0+resin-aarch64.tar.gz
 RUN apk add curl && curl -L ${QEMU_URL} | tar zxvf - -C . --strip-components 1
 
-FROM arm64v8/node:current-alpine as build
-# Add QEMU
-COPY --from=qemu qemu-aarch64-static /usr/bin
-
-# Build Nodejs
+# Build Nodejs Application
 WORKDIR /usr/src/app
 COPY package*.json tsconfig.json ./
 RUN npm ci
 COPY ./src ./src
 RUN npm run build
 
-# Copy to production container
 FROM arm64v8/node:current-alpine as prod
+
+# Add QEMU
+COPY --from=build qemu-aarch64-static /usr/bin
+
 ARG BUILD_DATE=unknown
 ARG BUILD_VERSION=0.0.0-development
 ARG VCS_REF=not-set
