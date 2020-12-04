@@ -2,7 +2,7 @@ import { StaticLogger } from "./static-logger";
 import { MusiccastDevice } from './musiccast-device';
 import { ConfigLoader } from "./config";
 import { DiscoveredMusiccastDevice, MusiccastDiscoverer } from "./musiccast-discoverer";
-import { McGroupRole } from "./musiccast-features";
+import { McGroupRole } from "./musiccast-types";
 
 
 export interface IDeviceUpdatedListener {
@@ -112,7 +112,10 @@ export class MusiccastDeviceManager {
 
     public async createDeviceFromIp(ip: string) {
         let mcDevice = await MusiccastDevice.fromIp(ip, (device, topic, payload) => this.deviceUpdated(device, topic, payload));
-        this._mcDevices[mcDevice.device_id] = mcDevice;
+        if (mcDevice)
+            this._mcDevices[mcDevice.device_id] = mcDevice;
+        else
+            this.log.error("cannot create musiccast device for ip '{ip}'", ip);
     }
 
     private async pollDeviceStatus(): Promise<void> {

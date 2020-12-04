@@ -1,8 +1,5 @@
 import { StaticLogger } from './static-logger';
-import Promise from 'bluebird'
-let request = Promise.promisify(require("@root/request"));
-Promise.promisifyAll(request);
-
+import request from './request';
 
 export interface DiscoveredMusiccastDevice {
     device_id: string;
@@ -94,4 +91,4 @@ export class MusiccastDiscoverer {
         return undefined;
     };
 
-  }
+}

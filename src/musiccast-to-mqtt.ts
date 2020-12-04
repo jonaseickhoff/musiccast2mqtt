@@ -7,11 +7,11 @@ import { MusiccastEventListener } from './musiccast-event-listener';
 import { IDeviceUpdatedListener, MusiccastDeviceManager } from './musiccast-device-manager';
 import { MusiccastCommands } from './musiccast-commands';
 import { MusiccastCommandMapping } from './musiccast-command-mapping';
-import { McZoneId } from './musiccast-features';
+import { McZoneId } from './musiccast-types';
 
 
 export class MusiccastToMqtt implements IDeviceUpdatedListener {
-    
+
     private readonly log = StaticLogger.CreateLoggerForSource('Musiccast2mqtt.main');
     private readonly mqtt_uri: string;
     private readonly mqtt_prefix: string;
@@ -24,7 +24,7 @@ export class MusiccastToMqtt implements IDeviceUpdatedListener {
 
     constructor() {
         let config = ConfigLoader.Config()
-        this.mqtt_uri = config.mqtt;
+        this.mqtt_uri = config.brokerUrl;
         this.mqtt_prefix = config.prefix;
         this.mqtt_insecure = config.insecure;
         this.mqtt_retain = config.mqttRetain;

@@ -28,7 +28,6 @@
   "homepage": "https://github.com/jonaseickhoff/musiccast2mqtt",
   "dependencies": {
     "@root/request": "^1.6.1",
-    "bluebird": "^3.7.2",
     "mqtt": "^2.16.0",
     "peer-ssdp": "0.0.5",
     "serilogger": "^0.3.1",

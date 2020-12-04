@@ -1,16 +1,9 @@
 import { MusiccastEventListener } from './musiccast-event-listener';
 import { StaticLogger } from './static-logger';
-import { McDistributionInfo, McFeatures, McGroupRole, McZoneId, McStereoPairInfo, McResponseCode, McInput, McStatus } from './musiccast-features';
-import { MusiccastGroupMananger } from './musiccast-group-manager';
-import { MusiccastToMqtt } from './musiccast-to-mqtt';
+import { McDistributionInfo, McFeatures, McGroupRole, McZoneId, McStereoPairInfo, McResponseCode, McInput, McStatus, McNetPlayInfo, McTunerPlayInfo } from './musiccast-types';
 import { ConfigLoader } from './config'
 import { MusiccastDeviceManager } from './musiccast-device-manager';
-
-import Promise from 'bluebird';
-let request = Promise.promisify(require("@root/request"));
-Promise.promisifyAll(request);
-
-
+import request from './request';
 interface updateCallback { (device: MusiccastDevice, topic: string, payload: any): void }
 
 
@@ -147,6 +140,7 @@ export class MusiccastDevice {
             }
             await this.updateStereoPairInfo();
             await this.updateDistributionInfo();
+            await this.updateNetPlayInfo();
         }
     }
 
@@ -239,6 +233,17 @@ export class MusiccastDevice {
         }
     }
 
+    private async updateNetPlayInfo(): Promise<void> {
+        try {
+            let playInfo = await this.getPlayInfo();
+            this.log.debug("{device_id} netusb playinfo: {playInfo}", this.device_id, playInfo);
+            this.publishUpdate(this, `netusbPlayInfo`, playInfo);
+            this.parseNetPlayInfo(playInfo);
+        } catch (error) {
+            this.log.error("{device_id}: Error update netusb playinfo. Error: {error}", this.device_id, error)
+        }
+    }
+
     public isGroupIdEmpty(): boolean {
         return this._distributionInfos.group_id === '00000000000000000000000000000000' || this._distributionInfos.group_id === ''
     }
@@ -252,7 +257,6 @@ export class MusiccastDevice {
         this._features = response;
         this.log.debug("{device_id} Features: {features}", this.device_id, this._features);
         this.publishUpdate(this, `features`, this._features);
-
 
         MusiccastEventListener.DefaultInstance.RegisterSubscription(this.device_id, (event: any) => this.parseNewEvent(event))
 
@@ -275,7 +279,9 @@ export class MusiccastDevice {
 
         }
         if ('netusb' in event) {
-
+            if ('play_info_updated' in event.netusb) {
+                this.updateNetPlayInfo();
+            }
         }
         if ('cd' in event) {
 
@@ -294,6 +300,13 @@ export class MusiccastDevice {
         }
         if ('signal_info_updated' in event) {
 
+        }
+    }
+
+    private parseNetPlayInfo(newPlayInfo: McNetPlayInfo) {
+        if ('albumart_url' in newPlayInfo) {
+            let albumart = newPlayInfo.albumart_url ?  `http://${this.ip}${newPlayInfo.albumart_url}` : "";
+            this.publishUpdate(this, `albumart`, albumart)
         }
     }
 
@@ -330,7 +343,6 @@ export class MusiccastDevice {
         this.log.verbose("Device {name} Get Request {request}", this.name, JSON.stringify(req));
 
         try {
-
             let response = await request.getAsync(req);
             let body = response.body;
             if (body.response_code === 0) {
@@ -360,7 +372,8 @@ export class MusiccastDevice {
         };
         this.log.verbose("Device {name} Post Request {request}", this.name, JSON.stringify(req));
         try {
-            let response = await request.postAsync(req).delay(delay);
+            let response = await request.postAsync(req);
+            await new Promise(resolve => setTimeout(resolve, delay));
             let body = response.body;
             if (body.response_code === 0) {
                 delete body.response_code;
@@ -508,6 +521,12 @@ export class MusiccastDevice {
         let command = '/netusb/getPresetInfo';
         return this.SendGetToDevice(command);
     };
+
+    public async getPlayInfo(): Promise<McNetPlayInfo> {
+        let command = '/netusb/getPlayInfo';
+        let response: McNetPlayInfo = await this.SendGetToDevice(command);
+        return response;
+    };
     public async getSettings() {
         let command = '/netusb/getSettings';
         return this.SendGetToDevice(command);
@@ -598,18 +617,14 @@ export class MusiccastDevice {
         let command = '/netusb/setListControl?list_id=' + listId + '&type=' + type + index + zone;
         return this.SendGetToDevice(command);
     };
-    //------------ NETUSB + CD commands ------------
-    public async getPlayInfo(val) {
-        let command: string;
-        if (val === 'cd') {
-            command = '/cd/getPlayInfo';
-        } else {
-            command = '/netusb/getPlayInfo';
-        }
-        return this.SendGetToDevice(command);
-    };
 
     //------------ CD commands ------------
+
+    public async getCdPlayInfo(): Promise<any> {
+        let command = '/cd/getPlayInfo';
+        let response: any = await this.SendGetToDevice(command);
+        return response;
+    };
 
     public async setCDPlayback(val) {
         if (!val || val == 'play') val = 'play';
@@ -778,9 +793,10 @@ export class MusiccastDevice {
         let command = '/tuner/getPresetInfo?band=' + band;
         return this.SendGetToDevice(command);
     };
-    public async getTunerPlayInfo() {
+    public async getTunerPlayInfo(): Promise<McTunerPlayInfo> {
         let command = '/tuner/getPlayInfo';
-        return this.SendGetToDevice(command);
+        let response: McTunerPlayInfo = await this.SendGetToDevice(command);
+        return response;
     };
     public async setBand(band) {
         let command = '/tuner/setBand?band=' + band;

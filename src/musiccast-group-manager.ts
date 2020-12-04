@@ -1,9 +1,7 @@
 import { StaticLogger } from './static-logger'
 import { MusiccastDevice } from './musiccast-device'
-import { MusiccastToMqtt } from './musiccast-to-mqtt'
-import { McGroupRole, McInputId, McLinkedClient, McZoneId } from './musiccast-features'
+import { McGroupRole, McZoneId } from './musiccast-types'
 import { MusiccastDeviceManager } from './musiccast-device-manager';
-import { MusiccastCommandMapping } from './musiccast-command-mapping';
 
 export class MusiccastGroupMananger {
 

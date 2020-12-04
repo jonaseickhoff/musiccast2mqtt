@@ -4,7 +4,7 @@ import path from 'path'
 import { StaticLogger } from './static-logger';
 
 export interface Config {
-    mqtt: string;
+    brokerUrl: string;
     prefix: string;
     log: string;
     pollingInterval: number;
@@ -17,7 +17,7 @@ export interface Config {
 
 
 const defaultConfig: Config = {
-    mqtt: 'mqtt://mqttbroker',
+    brokerUrl: 'mqtt://mqttbroker',
     prefix: 'musiccast',
     log: 'information',
     pollingInterval: 10,
@@ -48,7 +48,7 @@ export class ConfigLoader {
         const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json')).toString())
         return yargs
             .describe('h', 'show help')
-            .describe('mqtt', 'mqtt broker url.')
+            .describe('broker-url', 'mqtt broker url. Example: "mqtt://mqttbroker:1883"')
             .describe('prefix', 'instance name. used as prefix for all topics')
             .describe('log', 'Set the loglevel')
             .describe('polling-interval', `device status polling interval in seconds. Set 0 for disable polling.
@@ -59,6 +59,7 @@ export class ConfigLoader {
             .describe('devices', 'array of devices which should be controlled by mqtt')
             .describe('udpPort', 'port for listening on udp events on status change')
             .choices('log', ['warning', 'information', 'debug', 'verbose'])
+            .string("broker-url")
             .boolean('mqtt-retain')
             .number('polling-interval')
             .choices('friendlynames', ['name', 'uuid'])
@@ -80,7 +81,7 @@ export class ConfigLoader {
                 h: 'help',
             })
             .default({
-                mqtt: 'mqtt://mqttbroker',
+                'broker-url': 'mqtt://mqttbroker',
                 prefix: 'musiccast',
                 log: 'information',
                 'polling-interval': 10,

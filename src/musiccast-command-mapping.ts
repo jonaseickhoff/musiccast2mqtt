@@ -1,7 +1,7 @@
 import { MusiccastDevice } from "./musiccast-device";
 import { MusiccastCommands } from "./musiccast-commands";
 import { MusiccastGroupMananger } from './musiccast-group-manager';
-import { McZoneId } from "./musiccast-features";
+import { McZoneId } from "./musiccast-types";
 
 export class MusiccastCommandMapping {
 
