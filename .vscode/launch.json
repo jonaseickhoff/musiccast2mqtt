@@ -17,6 +17,8 @@
                 "10",
                 "--friendlynames",
                 "name",
+                "--zone-friendlynames",
+                "name",
                 "--prefix",
                 "musiccast_test",
                 "--devices",

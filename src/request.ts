@@ -2,7 +2,7 @@ import request from '@root/request';
 
 function getAsync(req: any): Promise<any> {
     return new Promise<any>((resolve, reject) => {
-        request.get(req, (error, response, body) => {
+        request.get(req, (error, response) => {
             if (error) {
                 reject(error);
             } else if (response.statusCode == 200) {
@@ -16,7 +16,7 @@ function getAsync(req: any): Promise<any> {
 
 function postAsync(req: any): Promise<any> {
     return new Promise<any>((resolve, reject) => {
-        request.post(req, (error, response, body) => {
+        request.post(req, (error, response) => {
             if (error) {
                 reject(error);
             } else if (response.statusCode == 200) {
@@ -27,7 +27,6 @@ function postAsync(req: any): Promise<any> {
         });
     });
 }
-
 
 export default {
     getAsync,

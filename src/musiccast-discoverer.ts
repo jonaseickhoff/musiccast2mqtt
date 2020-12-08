@@ -12,7 +12,7 @@ export interface DiscoveredMusiccastDevice {
 
 export class MusiccastDiscoverer {
 
-    private readonly log = StaticLogger.CreateLoggerForSource('MusiccastDiscoverer.main');
+    private readonly log = StaticLogger.CreateLoggerForSource('MusiccastDiscoverer');
     private readonly reyxcControl: RegExp = /<yamaha:X_yxcControlURL>*.YamahaExtendedControl.*<\/yamaha:X_yxcControlURL>/i;
     private readonly reFriendlyName: RegExp = /<friendlyName>([^<]*)<\/friendlyName>/;
     private readonly reModelName: RegExp = /<modelName>([^<]*)<\/modelName>/i;
@@ -26,7 +26,7 @@ export class MusiccastDiscoverer {
      * @param duration time of duration in milliseconds
      */
     async discover(duration: number): Promise<DiscoveredMusiccastDevice[]> {
-        return new Promise<DiscoveredMusiccastDevice[]>((resolve, reject) => {
+        return new Promise<DiscoveredMusiccastDevice[]>((resolve) => {
             this.log.info('discover musiccast devices');
 
             let ssdp = require("peer-ssdp");
@@ -69,7 +69,7 @@ export class MusiccastDiscoverer {
         })
     }
 
-    private async GetDeviceInfo(ip: string, model: string, name: string, system_id: string): Promise<DiscoveredMusiccastDevice> {
+    private async GetDeviceInfo(ip: string, model: string, name: string, system_id: string): Promise<DiscoveredMusiccastDevice | undefined> {
         let req = {
             method: 'GET',
             uri: 'http://' + ip + '/YamahaExtendedControl/v1/system/getDeviceInfo',

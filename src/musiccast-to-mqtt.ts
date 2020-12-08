@@ -2,17 +2,15 @@
 import { StaticLogger } from './static-logger';
 import mqtt, { MqttClient, IClientPublishOptions } from 'mqtt';
 import { ConfigLoader } from './config'
-import { MusiccastDevice } from './musiccast-device';
 import { MusiccastEventListener } from './musiccast-event-listener';
 import { IDeviceUpdatedListener, MusiccastDeviceManager } from './musiccast-device-manager';
 import { MusiccastCommands } from './musiccast-commands';
 import { MusiccastCommandMapping } from './musiccast-command-mapping';
-import { McZoneId } from './musiccast-types';
 
 
 export class MusiccastToMqtt implements IDeviceUpdatedListener {
 
-    private readonly log = StaticLogger.CreateLoggerForSource('Musiccast2mqtt.main');
+    private readonly log = StaticLogger.CreateLoggerForSource('Musiccast2mqtt');
     private readonly mqtt_uri: string;
     private readonly mqtt_prefix: string;
     private readonly mqtt_insecure: boolean;
@@ -48,8 +46,8 @@ export class MusiccastToMqtt implements IDeviceUpdatedListener {
         this.mqttClient?.end()
     }
 
-    public onDeviceUpdated(deviceId: string, topic: string, payload: any): void {
-        this.publish(`${deviceId}/${topic}`, payload, { retain: this.mqtt_retain, qos: 0 });
+    public onDeviceUpdated(zoneId: string, topic: string, payload: any): void {
+        this.publish(`status/${zoneId}/${topic}`, payload, { retain: this.mqtt_retain, qos: 0 });
     }
 
     private connect(): void {
@@ -105,34 +103,26 @@ export class MusiccastToMqtt implements IDeviceUpdatedListener {
                                 }
                                 break;
                             default:
-                                let device: MusiccastDevice = this.deviceManager.getDeviceById(parts[1]);
-                                if (device !== undefined) {
-
-                                    let zone = parts[2];
-                                    let mcZone: McZoneId;
-                                    if (zone !== undefined && Object.values(McZoneId).some(v => v === zone.toLowerCase())) {
-                                        mcZone = zone.toLowerCase() as McZoneId;
-                                    }
-
-                                    let command = parts[3];
-                                    let mcCommand: MusiccastCommands;
+                                let zone = this.deviceManager.getZoneById(parts[1]);
+                                if (zone !== undefined) {
+                                    let command = parts[2];
+                                    let mcCommand: MusiccastCommands | undefined;
                                     if (command !== undefined && Object.values(MusiccastCommands).some(v => v === command.toLowerCase())) {
                                         mcCommand = command.toLowerCase() as MusiccastCommands;
                                     }
-
-                                    if (mcCommand !== undefined && mcZone !== undefined)
-                                        MusiccastCommandMapping.ExecuteCommand(device, mcCommand, payload, mcZone);
+                                    if (mcCommand)
+                                        MusiccastCommandMapping.ExecuteCommand(zone, mcCommand, payload);
                                     else {
-                                        this.log.error('unknown topic {topic}/{topic}', parts[2], parts[3]);
+                                        this.log.error('unknown topic "{topic}"', parts[2]);
                                     }
                                 }
                                 else {
-                                    this.log.error('unknown topic {topic}', parts[1]);
+                                    this.log.error('unknown topic "{topic}"', parts[1]);
                                 }
                         };
                         break;
                     default:
-                        this.log.error('unknown topic {0}', parts[0]);
+                        this.log.error('unknown topic "{0}"', parts[0]);
                 }
             } catch (error) {
                 this.log.error("Error while receiving mqtt message: {error}", error)
@@ -158,7 +148,7 @@ export class MusiccastToMqtt implements IDeviceUpdatedListener {
         this.mqttClient?.publish(topic, payload, options)
     }
 
-      private parsePayload(payload: string | undefined): any | number | undefined | boolean {
+    private parsePayload(payload: string | undefined): any | number | undefined | boolean {
         if (payload === undefined) return;
         if (payload === '') return '';
         if (payload === 'false') return false;

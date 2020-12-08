@@ -1,149 +1,135 @@
-import { MusiccastDevice } from "./musiccast-device";
 import { MusiccastCommands } from "./musiccast-commands";
 import { MusiccastGroupMananger } from './musiccast-group-manager';
-import { McZoneId } from "./musiccast-types";
+import { MusiccastZone } from "./musiccast-zone";
 
 export class MusiccastCommandMapping {
 
-  static async ExecuteCommand(device: MusiccastDevice, command: MusiccastCommands, payload: any, zone: McZoneId = McZoneId.Main): Promise<any> {
+  static async ExecuteCommand(zone: MusiccastZone, command: MusiccastCommands, payload: any): Promise<any> {
     switch (command) {
       case MusiccastCommands.JoinGroup:
         if (payloadIsString(payload)) {
-          await MusiccastGroupMananger.getInstance().linkById(payload, [device.id]);
+          await MusiccastGroupMananger.getInstance().linkById(payload, [zone.id]);
         }
         break;
 
       case MusiccastCommands.LeaveGroup:
-        await MusiccastGroupMananger.getInstance().unlinkFromServer(device);
+        await MusiccastGroupMananger.getInstance().unlinkFromServer(zone);
         break;
 
       case MusiccastCommands.AddClients:
-        let addedClients: string[]
-        if (payloadIsString) {
+        let addedClients: string[];
+        if (payloadIsString(payload)) {
           addedClients = payload.split(',').filter((c: string) => c !== '');
         } else if (Array.isArray(payload)) {
           addedClients = payload;
         }
-        await MusiccastGroupMananger.getInstance().linkById(device.id, addedClients);
+        await MusiccastGroupMananger.getInstance().linkById(zone.id, addedClients);
         break;
 
       case MusiccastCommands.RemoveClients:
-        let removedClients: string[]
-        if (payloadIsString) {
+        let removedClients: string[];
+        if (payloadIsString(payload)) {
           removedClients = payload.split(',').filter((c: string) => c !== '');
         } else if (Array.isArray(payload)) {
           removedClients = payload;
         }
-        await MusiccastGroupMananger.getInstance().unlinkById(device.id, removedClients);
+        await MusiccastGroupMananger.getInstance().unlinkById(zone.id, removedClients);
         break;
 
       case MusiccastCommands.Clients:
-        let clients: string[]
-        if (payloadIsString) {
+        let clients: string[];
+        if (payloadIsString(payload)) {
           clients = payload.split(',').filter((c: string) => c !== '');
         } else if (Array.isArray(payload)) {
           clients = payload;
         }
-        await MusiccastGroupMananger.getInstance().setLinksById(device.id, clients);
+        await MusiccastGroupMananger.getInstance().setLinksById(zone.id, clients);
         break;
 
       case MusiccastCommands.Server:
-        if (payloadIsString) {
+        if (payloadIsString(payload)) {
           if (payload.trim() === '') {
-            await MusiccastGroupMananger.getInstance().unlinkFromServer(device);
+            await MusiccastGroupMananger.getInstance().unlinkFromServer(zone);
           } else {
-            await MusiccastGroupMananger.getInstance().linkById(payload, [device.id]);
+            await MusiccastGroupMananger.getInstance().linkById(payload, [zone.id]);
           }
         }
         break;
 
       case MusiccastCommands.Next:
-        await device.nextNet();
+        await zone.next();
         break;
 
       case MusiccastCommands.Previous:
-        await device.prevNet();
+        await zone.previous();
         break;
 
       case MusiccastCommands.Pause:
-        await device.pauseNet();
+        await zone.pause();
         break;
 
       case MusiccastCommands.Play:
-        await device.playNet();
+        await zone.play();
         break;
 
       case MusiccastCommands.Stop:
-        await device.stopNet();
+        await zone.stop();
         break;
 
       case MusiccastCommands.Repeat:
-        await device.toggleNetRepeat();
+        if (payloadIsString(payload))
+          await zone.setRepeat(payload);
         break;
 
       case MusiccastCommands.Shuffle:
-        await device.toggleNetShuffle();
+        if (payloadIsString(payload))
+          await zone.setShuffle(payload);
+        break;
+
+      case MusiccastCommands.ToggleRepeat:
+        await zone.toggleRepeat();
+        break;
+
+      case MusiccastCommands.ToggleShuffle:
+        await zone.toggleShuffle();
         break;
 
       case MusiccastCommands.Sleep:
-        if (payloadIsNumber) {
-          await device.sleep(payload, zone);
-        }
+        if (payloadIsNumber(payload))
+          await zone.sleep(payload);
         break;
 
       case MusiccastCommands.Speak:
         break;
 
-
-      case MusiccastCommands.SwitchTo:
-        if (payloadIsString(payload)) {
-          await device.setInput(payload, zone)
-        }
-        break;
-
-      case MusiccastCommands.Toggle:
-
+      case MusiccastCommands.Input:
+        if (payloadIsString(payload))
+          await zone.setInput(payload);
         break;
 
       case MusiccastCommands.Power:
-        await device.power((payload === "on" || payload === true || payload === "true"), zone);
+        await zone.power((payload === "on" || payload === true || payload === "true"));
         break;
 
       case MusiccastCommands.Mute:
-        await device.muteOn(zone);
+        await zone.mute(true);
         break;
 
       case MusiccastCommands.Unmute:
-        await device.muteOff(zone);
+        await zone.mute(false);
         break;
 
       case MusiccastCommands.Volume:
-        if (payloadIsNumber(payload)) {
-          let level: number = Math.round(payload / 100 * (device.getVolumeMax(zone) - device.getVolumeMin(zone)));
-          if (level < device.getVolumeMin(zone))
-            level = device.getVolumeMin(zone);
-          else if (level > device.getVolumeMax(zone))
-            level = device.getVolumeMax(zone);
-          await device.setVolumeTo(level, zone);
-        }
+        if (payloadIsNumber(payload))
+          await zone.setVolume(payload);
         break;
 
       case MusiccastCommands.VolumeDown:
-        let levelDown: number = device.getVolume(zone) - device.getVolumeStep(zone);
-        if (levelDown < device.getVolumeMin(zone))
-          levelDown = device.getVolumeMin(zone);
-        else if (levelDown > device.getVolumeMax(zone))
-          levelDown = device.getVolumeMax(zone);
-        await device.setVolumeTo(levelDown, zone);
+        await zone.volumeDown();
         break;
 
       case MusiccastCommands.VolumeUp:
-        let levelUp: number = device.getVolume(zone) + device.getVolumeStep(zone);
-        if (levelUp < device.getVolumeMin(zone))
-          levelUp = device.getVolumeMin(zone);
-        else if (levelUp > device.getVolumeMax(zone))
-          levelUp = device.getVolumeMax(zone);
-        await device.setVolumeTo(levelUp, zone);
+        await zone.volumeUp();
         break;
 
       default:

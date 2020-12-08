@@ -1,13 +1,14 @@
 import { Socket, createSocket, RemoteInfo } from 'dgram'
 import { StaticLogger } from './static-logger';
-import { ConfigLoader} from './config';
+import { ConfigLoader } from './config';
+import { McEvent } from './musiccast-types';
 
 
-export interface eventCallback { (event: any): void }
+export interface eventCallback { (event: McEvent): void }
 
 export class MusiccastEventListener {
 
-    private readonly log = StaticLogger.CreateLoggerForSource('MusiccastEventListener.main');
+    private readonly log = StaticLogger.CreateLoggerForSource('MusiccastEventListener');
 
     private static instance: MusiccastEventListener;
     private readonly port: number;
@@ -36,7 +37,7 @@ export class MusiccastEventListener {
 
     public RegisterSubscription(device_id: string, callback: eventCallback): void {
         if (this.isListening !== true) {
-            this.log.debug('Start listening on port %d', this.port);
+            this.log.info('Start listening on port {port} for mc events', this.port);
             this.isListening = true;
             this.server.bind(this.port);
         }
@@ -46,7 +47,7 @@ export class MusiccastEventListener {
     public UnregisterSubscription(device_id: string): void {
         delete this.subscriptions[device_id];
         if (this.isListening && Object.keys(this.subscriptions).length === 0) {
-            this.log.debug('Stop listening on port %d', this.port);
+            this.log.info('Stop listening on port {port}', this.port);
             this.server.close();
             this.isListening = false;
         }
@@ -65,14 +66,14 @@ export class MusiccastEventListener {
     private serverMessage(message: Buffer, remote: RemoteInfo): void {
         this.log.verbose("New udp message: {message}", remote.address + ':' + remote.port + ' - ' + message);
         try {
-            let event = JSON.parse(message.toString());
+            let event: McEvent = JSON.parse(message.toString());
             let callback: eventCallback = this.subscriptions[event.device_id];
             if (callback !== undefined)
                 callback(event);
             else {
                 this.log.warn("New udp message from unknown device: {message}", remote.address + ':' + remote.port + ' - ' + message);
             }
-        }catch(error){
+        } catch (error) {
             this.log.error("Error while receiving udp event: {error}", error)
         }
     }

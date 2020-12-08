@@ -3,16 +3,17 @@ import { MusiccastDevice } from './musiccast-device';
 import { ConfigLoader } from "./config";
 import { DiscoveredMusiccastDevice, MusiccastDiscoverer } from "./musiccast-discoverer";
 import { McGroupRole } from "./musiccast-types";
+import { MusiccastZone } from "./musiccast-zone";
 
 
 export interface IDeviceUpdatedListener {
-    onDeviceUpdated(deviceId: string, topic: string, payload: any): void;
+    onDeviceUpdated(zoneId: string, topic: string, payload: any): void;
 }
 
 
 export class MusiccastDeviceManager {
     private static instance: MusiccastDeviceManager;
-    private readonly log = StaticLogger.CreateLoggerForSource('MusiccastGroupMananger.main');
+    private readonly log = StaticLogger.CreateLoggerForSource('MusiccastGroupMananger');
     private readonly mcDiscoverer: MusiccastDiscoverer = new MusiccastDiscoverer();
 
     private readonly useFriendlyNames: boolean;
@@ -38,8 +39,6 @@ export class MusiccastDeviceManager {
             MusiccastDeviceManager.instance = new MusiccastDeviceManager();
         }
         return MusiccastDeviceManager.instance;
-
-
     }
 
     public dispose() {
@@ -68,22 +67,22 @@ export class MusiccastDeviceManager {
         return device;
     }
 
-    public getDeviceById(id: string): MusiccastDevice {
+    public getZoneById(id: string): MusiccastZone {
         id = id.trim();
-        let device: MusiccastDevice;
-        if (this.useFriendlyNames) {
-            device = Object.values(this._mcDevices).find(d => d.name === id)
+        let zone: MusiccastZone;
+        for (const device of Object.values(this._mcDevices)) {
+            for (const zone of Object.values(device.zones)) {
+                if (zone?.id === id)
+                    return zone;
+            }
         }
-        else {
-            device = this._mcDevices[id]
-        }
-        return device;
+        return zone;
     }
 
     public getServerByGroupId(id: string): MusiccastDevice {
         id = id.trim();
         let device: MusiccastDevice;
-        device = Object.values(this._mcDevices).find(d => d.distributionInfos && d.distributionInfos.group_id == id && d.role === McGroupRole.Server)
+        device = Object.values(this._mcDevices).find(d => d.distributionInfos && d.distributionInfos.group_id == id && Object.values(d.zones).some(z => z?.role === McGroupRole.Server))
         return device;
     }
 
@@ -99,7 +98,7 @@ export class MusiccastDeviceManager {
             }
             else {
                 this.log.debug("Add new Musiccast device: {device}", JSON.stringify(device));
-                this._mcDevices[device.device_id] = new MusiccastDevice(device.device_id, device.ip, device.model, (device, topic, payload) => this.deviceUpdated(device, topic, payload));
+                this._mcDevices[device.device_id] = new MusiccastDevice(device.device_id, device.ip, device.model, (zone, topic, payload) => this.deviceUpdated(zone, topic, payload));
             }
             if (this.useFriendlyNames)
                 discoveredDevices.push(this._mcDevices[device.device_id].name);
@@ -111,7 +110,7 @@ export class MusiccastDeviceManager {
 
 
     public async createDeviceFromIp(ip: string) {
-        let mcDevice = await MusiccastDevice.fromIp(ip, (device, topic, payload) => this.deviceUpdated(device, topic, payload));
+        let mcDevice = await MusiccastDevice.fromIp(ip, (zone, topic, payload) => this.deviceUpdated(zone, topic, payload));
         if (mcDevice)
             this._mcDevices[mcDevice.device_id] = mcDevice;
         else
@@ -131,14 +130,13 @@ export class MusiccastDeviceManager {
         this.pollingTimeout = setTimeout(() => this.pollDeviceStatus(), this.pollingInterval);
     }
 
-    public deviceUpdated(device: MusiccastDevice, topic: string, payload: any) {
-        let deviceId = this.useFriendlyNames ? device.name : device.device_id;
-        this.publishUpdatedDevice(deviceId, topic, payload);
+    public deviceUpdated(zone: MusiccastZone, topic: string, payload: any) {
+        this.publishUpdatedDevice(zone.id, topic, payload);
     }
 
-    private publishUpdatedDevice(deviceId: string, topic: string, payload: any) {
+    private publishUpdatedDevice(zoneId: string, topic: string, payload: any) {
         for (const subscriber of this.deviceUpdatedSubscriber) {
-            subscriber.onDeviceUpdated(deviceId, topic, payload);
+            subscriber.onDeviceUpdated(zoneId, topic, payload);
         }
     }
 }

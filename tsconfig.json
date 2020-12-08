@@ -5,7 +5,11 @@
         "module": "commonjs",
         "target": "ES2017",
         "sourceMap": true,
-        "esModuleInterop": true
+        "esModuleInterop": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "noImplicitReturns": true,
+        "noImplicitThis": true,
     },
     "include": [
         "./src/**/*",
