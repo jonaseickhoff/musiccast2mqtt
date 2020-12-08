@@ -1,7 +1,7 @@
 # musiccast2mqtt
-This node application is a bridge between Yamaha Musiccast devices and a mqtt server. The status of all your Yamaha Musiccast devices will be published to mqtt and you can control the speakers over mqtt.
+This node application is a bridge between Yamaha Musiccast devices and a mqtt server. The status of all your Yamaha Musiccast devices will be published to mqtt and you can control the speakers and zones over mqtt.
 
-I build this bridge, because i wanted to improve linking  musiccast devices. Linking devices with this bridge will automatically do some actions like unpairing from old groups or delete groups if new client device a server.
+I build this bridge, because i wanted to improve linking  musiccast devices. Linking devices with this bridge will automatically do some actions like unpairing from old groups or delete groups if new client device a server. In addition zones are also treated as simple devices. So you can link and unlink zones as simple as other devices.
 
 ### Usage
 
@@ -14,7 +14,13 @@ Options:
                       Please have in mind that listen to UDP Events is only possible 
                       if a polling is done at least every 10 minutes
  --mqtt-retain        enable/disable retain flag for mqtt messages (default: true)
- --friendlynames      Use device name or uuid (be sure to have unique device names if using name) (default: uuid)
+ --friendlynames      Use device 'name' or 'id' (be sure to have unique device names if using name) (default: name)
+ --zone-friendlynames Use zone name friendly name as room name. Only useful when friendlynames set to "name". (default: name)
+                      Example: 
+                      id:     Mainzone    -> <roomname>
+                              zone2       -> <roomname>-zone2            
+                      name:   Mainzone    -> <roomname>
+                              zone2       -> <zone-friendlyname>`
  --insecure           allow tls connections with invalid certificates (default: true)
  --devices            array of devices which should be controlled by mqtt bridge (if you dont want to discover)
  --udp-port            port for listening on udp events on status change. (default: 41100)
@@ -28,6 +34,10 @@ Example: MUSICCAST2MQTT_BROKER_URL
 
 You can add Username/Password for the connection to the MQTT broker to the MQTT URL param like e.g. 
 `mqtt://user:pass@broker`. For a secure connection via TLS use `mqtts://` as URL scheme.
+
+### Topics
+
+All devices are published under your prefix topic. By default this is 'musiccast'. 
 
 ### docker-compose.yml
 
