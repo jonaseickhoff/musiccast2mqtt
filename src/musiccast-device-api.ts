@@ -97,7 +97,7 @@ export module McDeviceApi {
         return SendGetToDevice(ip, command);
     };
     export async function mute(ip: string, on: boolean, zone: McZoneId) {
-        let command = '/' + zone + '/setMute?enable=' + on ? 'true' : 'false';
+        let command = '/' + zone + '/setMute?enable=' + (on ? 'true' : 'false');
         return SendGetToDevice(ip, command);
     };
     export async function setInput(ip: string, input: McInputId, zone: McZoneId, mode?) {

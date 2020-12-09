@@ -3,6 +3,7 @@ import { MusiccastDevice } from "./musiccast-device";
 import { McDeviceApi } from "./musiccast-device-api";
 import { MusiccastDeviceManager } from "./musiccast-device-manager";
 import { McGroupRole, McInputId, McStatus, McZoneFeatures, McZoneId } from "./musiccast-types";
+import request from "./request";
 import { StaticLogger } from "./static-logger";
 
 interface updateCallback { (zone: MusiccastZone, topic: string, payload: any): void }
@@ -18,7 +19,14 @@ interface zoneStatus {
     input: McInputId,
     volume: number,
     mute: boolean,
-    albumart: string
+    player: {
+        playback: string,
+        albumarturl: string,
+        albumart: string,
+        title: string,
+        artist: string,
+        album: string
+    }
 }
 
 export class MusiccastZone {
@@ -44,7 +52,14 @@ export class MusiccastZone {
         input: undefined,
         volume: undefined,
         mute: undefined,
-        albumart: undefined
+        player: {
+            playback: undefined,
+            title: undefined,
+            artist: undefined,
+            album: undefined,
+            albumarturl: undefined,
+            albumart: undefined,
+        }
     }
 
     private _publishedStatus: zoneStatus = JSON.parse(JSON.stringify(this._status));
@@ -320,12 +335,84 @@ export class MusiccastZone {
 
     /* Reading and Parsing Status */
 
-    private parseNetPlayInfo() {
-        if (!this._device.netPlayInfo)
-            return;
-
-        if ('albumart_url' in this._device.netPlayInfo) {
-            this._status.albumart = this._device.netPlayInfo.albumart_url ? `http://${this._device.ip}${this._device.netPlayInfo.albumart_url}` : "";
+    private async parsePlayInfo(): Promise<void> {
+        let playInfoType = this.device.features.system.input_list.find(i => i.id == this.mcStatus.input).play_info_type;
+        let oldAlbumartUrl = this._status.player.albumarturl;
+        switch (playInfoType) {
+            case 'netusb':
+                if (!this._device.netPlayInfo) {
+                    this.log.error("No netusbPlayInfo although netusb input selected");
+                    return;
+                }
+                this._status.player.playback = this.device.netPlayInfo.playback || "";
+                this._status.player.title = this.device.netPlayInfo.track || "";
+                this._status.player.artist = this.device.netPlayInfo.artist || "";
+                this._status.player.album = this.device.netPlayInfo.album || "";
+                this._status.player.albumarturl = this._device.netPlayInfo.albumart_url ? `http://${this._device.ip}${this._device.netPlayInfo.albumart_url}` : "";
+                break;
+            case 'cd':
+                if (!this._device.cdPlayInfo) {
+                    this.log.error("No cdPlayInfo although cd input selected");
+                    return;
+                }
+                this._status.player.playback = this.device.cdPlayInfo.playback || "";
+                this._status.player.title = this.device.cdPlayInfo.track || "";
+                this._status.player.artist = this.device.cdPlayInfo.artist || "";
+                this._status.player.album = this.device.cdPlayInfo.album || "";
+                this._status.player.albumarturl = "";
+                break;
+            case 'tuner':
+                if (!this._device.tunerPlayInfo) {
+                    this.log.error("No tunerPlayInfo although tuner input selected");
+                    return;
+                }
+                switch (this._device.tunerPlayInfo.band) {
+                    case 'am':
+                        this._status.player.title = this.device.tunerPlayInfo.am.freq?.toString() || "";
+                        this._status.player.artist = this.device.tunerPlayInfo.am.preset?.toString() || "";
+                        break;
+                    case 'fm':
+                        if ('rds' in this._device.tunerPlayInfo) {
+                            this._status.player.title = this.device.tunerPlayInfo.rds.radio_text_a || "";
+                            this._status.player.artist = this.device.tunerPlayInfo.rds.radio_text_b || "";
+                        } else {
+                            this._status.player.title = this.device.tunerPlayInfo.fm.freq?.toString() || "";
+                            this._status.player.artist = this.device.tunerPlayInfo.fm.preset?.toString() || "";
+                        }
+                        break;
+                    case 'dab':
+                        this._status.player.title = this.device.tunerPlayInfo.dab.ensemble_label || "";
+                        this._status.player.artist = this.device.tunerPlayInfo.dab.dls || "";
+                        break;
+                    default:
+                }
+                this._status.player.album = "";
+                this._status.player.albumarturl = "";
+                this._status.player.playback = "";
+                break;
+            case 'none':
+            default:
+                this._status.player = {
+                    playback: "",
+                    title: "",
+                    artist: "",
+                    album: "",
+                    albumarturl: "",
+                    albumart: ""
+                }
+        }
+        if (oldAlbumartUrl !== this._status.player.albumarturl) {
+            let data: string = "";
+            if (this._status.player.albumarturl !== "") {
+                let req = {
+                    method: 'GET',
+                    uri: this._status.player.albumarturl,
+                    encoding: null
+                };
+                let response = await request.getAsync(req)
+                data =  Buffer.from(response.body).toString('base64');
+            }
+            this._status.player.albumart = data;
         }
     }
 
@@ -406,9 +493,9 @@ export class MusiccastZone {
 
     /* publishing MQTT Data */
 
-    public publishChangedStatus() {
+    public async publishChangedStatus(): Promise<void> {
         this.parseStatusPart();
-        this.parseNetPlayInfo();
+        await this.parsePlayInfo();
         this.calculateLinkState();
         let deviceStatus = JSON.parse(JSON.stringify(this._status));
         let publishedStatus = JSON.parse(JSON.stringify(this._publishedStatus));
