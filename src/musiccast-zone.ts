@@ -336,6 +336,8 @@ export class MusiccastZone {
     /* Reading and Parsing Status */
 
     private async parsePlayInfo(): Promise<void> {
+        if(!this.mcStatus)
+            return;
         let playInfoType = this.device.features.system.input_list.find(i => i.id == this.mcStatus.input).play_info_type;
         let oldAlbumartUrl = this._status.player.albumarturl;
         switch (playInfoType) {

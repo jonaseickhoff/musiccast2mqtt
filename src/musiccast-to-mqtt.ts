@@ -29,9 +29,6 @@ export class MusiccastToMqtt implements IDeviceUpdatedListener {
         this.mqttConnected = false;
         this.deviceManager = MusiccastDeviceManager.getInstance();
         this.deviceManager.subscribe(this);
-        for (const device of config.devices) {
-            this.deviceManager.createDeviceFromIp(device)
-        }
     }
 
     public async start(): Promise<boolean> {

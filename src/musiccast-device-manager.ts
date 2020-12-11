@@ -28,6 +28,10 @@ export class MusiccastDeviceManager {
         let config = ConfigLoader.Config()
         this.useFriendlyNames = config.friendlynames === 'name';
 
+        for (const device of config.devices) {
+            this.createDeviceFromIp(device)
+        }
+
         if (config.pollingInterval > 0) {
             this.pollingInterval = config.pollingInterval * 1000;
             this.pollingTimeout = setTimeout(() => this.pollDeviceStatus(), this.pollingInterval);
@@ -121,7 +125,8 @@ export class MusiccastDeviceManager {
         this.log.debug("Poll Musiccast device status.")
         try {
             await Promise.all(Object.values(this._mcDevices).map(async (device) => {
-                await device.pollDevice();
+                if (device.isInitialized)
+                    await device.pollDevice();
             }));
         }
         catch (error) {

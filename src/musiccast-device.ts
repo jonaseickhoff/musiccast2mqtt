@@ -49,7 +49,7 @@ export class MusiccastDevice {
 
     private _zones: { [zone in McZoneId]?: MusiccastZone } = {};
 
-    private isInitalized: boolean = false;
+    private _isInitalized: boolean = false;
 
     public readonly device_id: string;
     public ip: string;
@@ -74,9 +74,8 @@ export class MusiccastDevice {
         await this.updateNameText();
         await this.updateStereoPairInfo();
 
+        this._isInitalized = true;
         MusiccastEventListener.DefaultInstance.RegisterSubscription(this.device_id, (event: McEvent) => this.parseNewEvent(event))
-
-        this.isInitalized = true;
     }
 
     public get features(): McFeatures {
@@ -119,6 +118,10 @@ export class MusiccastDevice {
         return this._features.system.input_list.some(i => i.play_info_type === 'tuner');
     }
 
+    public get isInitialized(): boolean {
+        return this._isInitalized
+    }
+
     /**
      * returns true if device is a slave device in a stereo setup, otherwise false */
     public get isSlave(): boolean {
@@ -148,7 +151,7 @@ export class MusiccastDevice {
     /* Reading and Parsing Status */
 
     public async pollDevice(): Promise<void> {
-        if (this.isInitalized) {
+        if (this._isInitalized) {
             for (const zone of this._features.zone) {
                 await this.updateStatus(zone.id);
             }
@@ -308,12 +311,12 @@ export class MusiccastDevice {
 
 
     private publishChangedStatus() {
-        if (this.isInitalized)
+        if (this._isInitalized)
             Object.values(this._zones).forEach(zone => zone.publishChangedStatus())
     }
 
     private zoneUpdated(zone: MusiccastZone, topic: string, payload: any) {
-        if (this.isInitalized)
+        if (this._isInitalized)
             this.publishZoneUpdate(zone, topic, payload);
     }
 
