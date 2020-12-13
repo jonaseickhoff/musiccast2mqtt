@@ -401,7 +401,10 @@ export class MusiccastZone {
                     album: "",
                     albumarturl: "",
                     albumart: ""
-                }
+                }            
+        }
+        if(this.role == McGroupRole.Client && this.linkedServer?._status?.player?.albumarturl){
+            this._status.player.albumarturl = this.linkedServer._status.player.albumarturl;
         }
         if (oldAlbumartUrl !== this._status.player.albumarturl) {
             let data: string = "";
