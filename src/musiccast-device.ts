@@ -81,10 +81,16 @@ export class MusiccastDevice {
     }
 
     private async initDevice(): Promise<void> {
+        // inital get all available infos
         await this.updateNetworkStatus();
         await this.updateNameText();
         await this.updateFeatures();
         await this.updateStereoPairInfo();
+        await this.updateNetPlayInfo();
+        if (this.hasCd)
+            await this.updateCdPlayInfo();
+        if (this.hasTuner)
+            await this.updateTunerPlayInfo();
 
         for (let zone of Object.values(this._zones)) {
             zone.publishFeatures();
