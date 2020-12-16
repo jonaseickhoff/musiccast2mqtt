@@ -1,6 +1,6 @@
 import { MusiccastEventListener } from './musiccast-event-listener';
 import { StaticLogger } from './static-logger';
-import { McDistributionInfo, McFeatures, McZoneId, McStereoPairInfo, McNetPlayInfo, McTunerPlayInfo, McCdPlayInfo, McEvent, McNameText } from './musiccast-types';
+import { McDistributionInfo, McFeatures, McZoneId, McStereoPairInfo, McNetPlayInfo, McTunerPlayInfo, McCdPlayInfo, McEvent, McInputId, McSoundProgram } from './musiccast-types';
 import { ConfigLoader } from './config'
 import { MusiccastDeviceManager } from './musiccast-device-manager';
 import { McDeviceApi } from './musiccast-device-api';
@@ -39,8 +39,20 @@ export class MusiccastDevice {
 
     private readonly useFriendlyNames: boolean;
 
+    private _inputToFriendlyname: { [key: string]: string } = {}
+    private _friendlynameToInput: { [key: string]: McInputId } = {}
+
+    private _inputToPlayinfoType: { [key: string]: "none" | "tuner" | "netusb" | "cd" } = {}
+
+    private _soundprogramToFriendlyname: { [key: string]: string } = {}
+    private _friendlynameToSoundprogram: { [key: string]: McSoundProgram } = {}
+
+    private _zoneToFriendlyname: { [key: string]: string } = {}
+    private _friendlynameToZone: { [key: string]: McZoneId } = {}
+
+
+
     private _features: McFeatures;
-    private _nameText: McNameText;
     private _stereoPairInfos: McStereoPairInfo;
     private _distributionInfos: McDistributionInfo;
     private _netPlayInfo: McNetPlayInfo;
@@ -70,20 +82,50 @@ export class MusiccastDevice {
 
     private async initDevice(): Promise<void> {
         await this.updateNetworkStatus();
-        await this.updateFeatures();
         await this.updateNameText();
+        await this.updateFeatures();
         await this.updateStereoPairInfo();
 
-        this._isInitalized = true;
+        for (let zone of Object.values(this._zones)) {
+            zone.publishFeatures();
+        }
+        for (const zone of this._features.zone) {
+            await this.updateStatus(zone.id);
+        }
         MusiccastEventListener.DefaultInstance.RegisterSubscription(this.device_id, (event: McEvent) => this.parseNewEvent(event))
+        this._isInitalized = true;
     }
 
     public get features(): McFeatures {
         return this._features;
     }
 
-    public get nameText(): McNameText {
-        return this._nameText;
+    public get zoneToFriendlyname(): { [key: string]: string } {
+        return this._zoneToFriendlyname;
+    }
+
+    public get friendlynameToZone(): { [key: string]: McZoneId } {
+        return this._friendlynameToZone;
+    }
+
+    public get inputToFriendlyname(): { [key: string]: string } {
+        return this._inputToFriendlyname;
+    }
+
+    public get friendlynameToInput(): { [key: string]: McInputId } {
+        return this._friendlynameToInput;
+    }
+
+    public get soundprogramToFriendlyname(): { [key: string]: string } {
+        return this._soundprogramToFriendlyname;
+    }
+
+    public get friendlynameToSoundprogram(): { [key: string]: McSoundProgram } {
+        return this._friendlynameToSoundprogram;
+    }
+
+    public get inputToPlayinfoType(): { [key: string]: "none" | "tuner" | "netusb" | "cd" } {
+        return this._inputToPlayinfoType;
     }
 
     public get distributionInfos(): McDistributionInfo {
@@ -179,9 +221,6 @@ export class MusiccastDevice {
         try {
             this._distributionInfos = await McDeviceApi.getDistributionInfo(this.ip);
             this.zoneUpdated(this.zones[McZoneId.Main], `debug/distributionInfo`, this._distributionInfos);
-
-
-
         } catch (error) {
             this.log.error("{device_id}: Error update distribution infos {error}", this.id, error)
         }
@@ -199,6 +238,7 @@ export class MusiccastDevice {
     private async updateFeatures(): Promise<void> {
         try {
             this._features = await McDeviceApi.getFeatures(this.ip);
+            this._features.system.input_list.forEach(i => this._inputToPlayinfoType[i.id] = i.play_info_type);
             this.log.debug("{device_id} Features: {features}", this.device_id, this._features);
             this.zoneUpdated(this.zones[McZoneId.Main], `debug/features`, this._features);
             for (let zone of this._features.zone) {
@@ -211,9 +251,21 @@ export class MusiccastDevice {
 
     private async updateNameText(): Promise<void> {
         try {
-            this._nameText = await McDeviceApi.getNameText(this.ip);
-            this.log.debug("{device_id} NameText: {nameText}", this.device_id, this._nameText);
-            this.zoneUpdated(this.zones[McZoneId.Main], `debug/nameText`, this._nameText);
+            let nameText = await McDeviceApi.getNameText(this.ip);
+            this.log.debug("{device_id} NameText: {nameText}", this.device_id, nameText);
+            this.zoneUpdated(this.zones[McZoneId.Main], `debug/nameText`, nameText);
+            nameText.input_list.forEach(l => {
+                this._inputToFriendlyname[l.id] = l.text;
+                this._friendlynameToInput[l.text] = l.id;
+            })
+            nameText.sound_program_list.forEach(l => {
+                this._soundprogramToFriendlyname[l.id] = l.text;
+                this._friendlynameToSoundprogram[l.text] = l.id;
+            })
+            nameText.zone_list.forEach(l => {
+                this._zoneToFriendlyname[l.id] = l.text;
+                this._friendlynameToZone[l.text] = l.id;
+            })
         } catch (error) {
             this.log.error("{device_id}: Error update nameText. Error: {error}", this.id, error)
         }
@@ -268,8 +320,6 @@ export class MusiccastDevice {
         this.log.verbose("device {device_id} new event: {message}", this.id, JSON.stringify(event));
         for (const zone of this._features.zone) {
             if (zone.id in event) {
-                this._zones[zone.id].mcStatus = { ...this._zones[zone.id].mcStatus, ...event[zone.id] };
-                this.zoneUpdated(this.zones[McZoneId.Main], `debug/${zone.id}/status`, this._zones[zone.id].mcStatus);
                 this.parseZoneEvent(zone.id, event[zone.id]);
             }
         }
@@ -284,13 +334,19 @@ export class MusiccastDevice {
             }
         }
         if ('netusb' in event) {
-            if ('play_info_updated' in event.netusb) {
+            if (event.netusb.play_info_updated) {
                 this.updateNetPlayInfo().then(() => this.publishChangedStatus());
+            }
+            if (event.netusb.play_time) {
+                this._netPlayInfo.play_time = event.netusb.play_time;
             }
         }
         if ('cd' in event) {
             if (event.cd.play_info_updated) {
                 this.updateCdPlayInfo().then(() => this.publishChangedStatus());
+            }
+            if (event.cd.play_time) {
+                this._cdPlayInfo.play_time = event.cd.play_time;
             }
         }
         if ('dist' in event && event.dist.dist_info_updated) {
@@ -300,6 +356,7 @@ export class MusiccastDevice {
     }
 
     private parseZoneEvent(zone: McZoneId, event: any) {
+        this._zones[zone].mcStatus = { ...this._zones[zone].mcStatus, ...event[zone] };
         if ('status_updated' in event) {
             // Returns whether or not other info has changed than main zone
             // power/input/volume/mute status. If so, pull renewed info using /main/getStatus
@@ -307,6 +364,7 @@ export class MusiccastDevice {
         }
         if ('signal_info_updated' in event) {
         }
+        this.zoneUpdated(this.zones[McZoneId.Main], `debug/${zone}/status`, this._zones[zone].mcStatus);
     }
 
 

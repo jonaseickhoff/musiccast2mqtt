@@ -14,6 +14,7 @@ export enum MusiccastCommands {
   Speak = 'speak',
   Stop = 'stop',
   Input = "input",
+  Soundprogram = "soundprogram",
   Unmute = 'unmute',
   Volume = 'volume',
   VolumeDown = 'volumedown',

@@ -11,6 +11,8 @@ export interface Config {
     mqttRetain: boolean;
     friendlynames: 'name' | 'id';
     zoneFriendlynames: 'name' | 'id';
+    inputFriendlynames: 'name' | 'id';
+    soundprogramFriendlynames: 'name' | 'id';
     insecure: boolean;
     devices: string[];
     udpPort: number;
@@ -25,12 +27,12 @@ const defaultConfig: Config = {
     mqttRetain: true,
     friendlynames: 'name',
     zoneFriendlynames: 'name',
+    inputFriendlynames: 'name',
+    soundprogramFriendlynames: 'name',
     insecure: true,
     devices: [],
     udpPort: 41100
 }
-
-
 
 export class ConfigLoader {
 
@@ -64,6 +66,8 @@ export class ConfigLoader {
                         zone2       -> <roomname>-zone2            
                 name:   Mainzone    -> <roomname>
                         zone2       -> <zone-friendlyname>`)
+            .describe('input-friendlynames', 'Use friendlynames and renamed input names or fix input ids')
+            .describe('soundprogram-friendlynames', 'Use friendlynames and renamed soundprograms names or fix soundprogram ids')
             .describe('insecure', 'allow tls connections with invalid certificates')
             .describe('devices', 'array of devices which should be controlled by mqtt bridge')
             .describe('udp-port', 'port for listening on udp events on status change')
@@ -73,6 +77,8 @@ export class ConfigLoader {
             .number('polling-interval')
             .choices('friendlynames', ['name', 'id'])
             .choices('zone-friendlynames', ['name', 'id'])
+            .choices('input-friendlynames', ['name', 'id'])
+            .choices('soundprogram-friendlynames', ['name', 'id'])
             .boolean('insecure')
             .array('devices')
             .number('udp-port')
@@ -98,6 +104,8 @@ export class ConfigLoader {
                 'mqtt-retain': true,
                 friendlynames: 'name',
                 'zone-friendlynames': 'name',
+                'input-friendlynames': 'name',
+                'soundprogram-friendlynames': 'name',
                 insecure: true,
                 devices: [],
                 udpPort: 41100

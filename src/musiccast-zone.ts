@@ -2,8 +2,7 @@ import { ConfigLoader } from "./config";
 import { MusiccastDevice } from "./musiccast-device";
 import { McDeviceApi } from "./musiccast-device-api";
 import { MusiccastDeviceManager } from "./musiccast-device-manager";
-import { McGroupRole, McInputId, McStatus, McZoneFeatures, McZoneId } from "./musiccast-types";
-import request from "./request";
+import { McGroupRole, McInputId, McSoundProgram, McStatus, McZoneFeatures, McZoneId } from "./musiccast-types";
 import { StaticLogger } from "./static-logger";
 
 interface updateCallback { (zone: MusiccastZone, topic: string, payload: any): void }
@@ -16,16 +15,18 @@ interface zoneStatus {
         server: string
     }
     power: string,
-    input: McInputId,
+    input: string,
     volume: number,
     mute: boolean,
+    soundprogram: string,
     player: {
         playback: string,
         albumarturl: string,
-        albumart: string,
         title: string,
         artist: string,
-        album: string
+        album: string,
+        playtime: number | "",
+        totaltime: number | "",
     }
 }
 
@@ -34,6 +35,8 @@ export class MusiccastZone {
     private readonly log = StaticLogger.CreateLoggerForSource('MusiccastZone');
 
     private readonly useZoneFriendlyNames: boolean;
+    private readonly useInputFriendlyNames: boolean;
+    private readonly useSoundprogramFriendlyNames: boolean;
 
     private readonly _device: MusiccastDevice;
     private readonly _features: McZoneFeatures;
@@ -52,13 +55,15 @@ export class MusiccastZone {
         input: undefined,
         volume: undefined,
         mute: undefined,
+        soundprogram: undefined,
         player: {
             playback: undefined,
             title: undefined,
             artist: undefined,
             album: undefined,
             albumarturl: undefined,
-            albumart: undefined,
+            playtime: undefined,
+            totaltime: undefined,
         }
     }
 
@@ -68,9 +73,12 @@ export class MusiccastZone {
     constructor(device: MusiccastDevice, features: McZoneFeatures, publishUpdate: updateCallback,) {
         let config = ConfigLoader.Config()
         this.useZoneFriendlyNames = config.zoneFriendlynames === 'name';
+        this.useInputFriendlyNames = config.inputFriendlynames === 'name';
+        this.useSoundprogramFriendlyNames = config.soundprogramFriendlynames === 'name';
 
         this._device = device;
         this._features = features;
+
         this.publishUpdate = publishUpdate;
     }
 
@@ -82,14 +90,14 @@ export class MusiccastZone {
     public get name(): string {
         if (this.zoneId === McZoneId.Main)
             return this.device.id;
-        return this.device.nameText.zone_list.find(f => f.id === this.zoneId)?.text
+        return this.device.zoneToFriendlyname[this.zoneId]
     }
 
     public get id(): string {
         if (this.zoneId === McZoneId.Main)
             return this.device.id;
         if (this.useZoneFriendlyNames) {
-            return this.device.nameText.zone_list.find(f => f.id === this.zoneId)?.text
+            return this.device.zoneToFriendlyname[this.zoneId]
         } else {
             return this.device.id + '-' + this.zoneId;
         }
@@ -121,15 +129,27 @@ export class MusiccastZone {
         await McDeviceApi.sleep(this._device.ip, time, this.zoneId);
     }
 
-    public async setInput(input: McInputId): Promise<void> {
+    public async setInput(input: string): Promise<void> {
+        if (this.useInputFriendlyNames)
+            input = this.device.friendlynameToInput[input];
+
         if (this._features.input_list.some(i => i === input)) {
-            await McDeviceApi.setInput(this._device.ip, input, this.zoneId);
+            await McDeviceApi.setInput(this._device.ip, input as McInputId, this.zoneId);
         } else {
-            this.log.warn('unkown input "{input}" for device {deviceid}', input, this.zoneId);
+            this.log.warn('unkown input "{input}" for device {deviceid} in zone {zone}', input, this._device.id, this.zoneId);
         }
     }
 
+    public async setSoundprogram(soundprogram: string): Promise<void> {
+        if (this.useSoundprogramFriendlyNames)
+            soundprogram = this.device.friendlynameToSoundprogram[soundprogram];
 
+        if (this._features.sound_program_list.some(i => i === soundprogram)) {
+            await McDeviceApi.setSound(this._device.ip, soundprogram as McSoundProgram, this.zoneId);
+        } else {
+            this.log.warn('unkown soundprogram "{soundprogram}" for device {deviceid} in zone {zone}', soundprogram, this._device.id, this.zoneId);
+        }
+    }
 
     /** Player specifig functions */
 
@@ -335,11 +355,12 @@ export class MusiccastZone {
 
     /* Reading and Parsing Status */
 
-    private async parsePlayInfo(): Promise<void> {
-        if(!this.mcStatus)
+    private parsePlayInfo(): void {
+        if (!this.mcStatus)
             return;
-        let playInfoType = this.device.features.system.input_list.find(i => i.id == this.mcStatus.input).play_info_type;
-        let oldAlbumartUrl = this._status.player.albumarturl;
+        let playInfoType = this.device.inputToPlayinfoType[this.mcStatus.input];
+        let playtime = -60000
+        let totaltime = 0
         switch (playInfoType) {
             case 'netusb':
                 if (!this._device.netPlayInfo) {
@@ -351,6 +372,8 @@ export class MusiccastZone {
                 this._status.player.artist = this.device.netPlayInfo.artist || "";
                 this._status.player.album = this.device.netPlayInfo.album || "";
                 this._status.player.albumarturl = this._device.netPlayInfo.albumart_url ? `http://${this._device.ip}${this._device.netPlayInfo.albumart_url}` : "";
+                playtime = this._device.netPlayInfo.play_time;
+                totaltime = this._device.netPlayInfo.total_time;
                 break;
             case 'cd':
                 if (!this._device.cdPlayInfo) {
@@ -362,6 +385,8 @@ export class MusiccastZone {
                 this._status.player.artist = this.device.cdPlayInfo.artist || "";
                 this._status.player.album = this.device.cdPlayInfo.album || "";
                 this._status.player.albumarturl = "";
+                playtime = this._device.cdPlayInfo.play_time;
+                totaltime = this._device.cdPlayInfo.total_time;
                 break;
             case 'tuner':
                 if (!this._device.tunerPlayInfo) {
@@ -400,36 +425,28 @@ export class MusiccastZone {
                     artist: "",
                     album: "",
                     albumarturl: "",
-                    albumart: ""
-                }            
+                    playtime: "",
+                    totaltime: "",
+                }
         }
-        if(this.role == McGroupRole.Client && this.linkedServer?._status?.player?.albumarturl){
+        this._status.player.totaltime = totaltime !== 0 ? totaltime : "";
+        this._status.player.playtime = playtime !== -60000 ? playtime : "";
+        if (this.role == McGroupRole.Client && this.linkedServer?._status?.player?.albumarturl) {
             this._status.player.albumarturl = this.linkedServer._status.player.albumarturl;
-        }
-        if (oldAlbumartUrl !== this._status.player.albumarturl) {
-            let data: string = "";
-            if (this._status.player.albumarturl !== "") {
-                let req = {
-                    method: 'GET',
-                    uri: this._status.player.albumarturl,
-                    encoding: null
-                };
-                let response = await request.getAsync(req)
-                data =  Buffer.from(response.body).toString('base64');
-            }
-            this._status.player.albumart = data;
         }
     }
 
     private parseStatusPart() {
         if (!this.mcStatus)
             return;
-
         if ('power' in this.mcStatus) {
             this._status.power = this.mcStatus.power;
         }
         if ('input' in this.mcStatus) {
-            this._status.input = this.mcStatus.input;
+            if (this.useInputFriendlyNames)
+                this._status.input = this.device.inputToFriendlyname[this.mcStatus.input];
+            else
+                this._status.input = this.mcStatus.input;
         }
         if ('volume' in this.mcStatus) {
             let volume = Math.round(this.mcStatus.volume / (this.getVolumeMax() - this.getVolumeMin()) * 100);
@@ -437,6 +454,12 @@ export class MusiccastZone {
         }
         if ('mute' in this.mcStatus) {
             this._status.mute = this.mcStatus.mute;
+        }
+        if ('sound_program' in this.mcStatus) {
+            if (this.useSoundprogramFriendlyNames)
+                this._status.soundprogram = this.device.soundprogramToFriendlyname[this.mcStatus.sound_program];
+            else
+                this._status.soundprogram = this.mcStatus.sound_program;
         }
     }
 
@@ -498,9 +521,23 @@ export class MusiccastZone {
 
     /* publishing MQTT Data */
 
+    public publishFeatures(): void {
+        if (this.useInputFriendlyNames) {
+            this.publishUpdate(this, "features/input", this._features.input_list.map(id => this.device.inputToFriendlyname[id]));
+        } else {
+            this.publishUpdate(this, "features/input", this._features.input_list);
+        }
+        if (this._features.sound_program_list)
+            if (this.useSoundprogramFriendlyNames) {
+                this.publishUpdate(this, "features/soundprogram", this._features.sound_program_list.map(id => this.device.soundprogramToFriendlyname[id]));
+            } else {
+                this.publishUpdate(this, "features/soundprogram", this._features.sound_program_list);
+            }
+    }
+
     public async publishChangedStatus(): Promise<void> {
         this.parseStatusPart();
-        await this.parsePlayInfo();
+        this.parsePlayInfo();
         this.calculateLinkState();
         let deviceStatus = JSON.parse(JSON.stringify(this._status));
         let publishedStatus = JSON.parse(JSON.stringify(this._publishedStatus));
@@ -524,7 +561,7 @@ export class MusiccastZone {
                 } else {
                     this.compareAndPublish(`${topic}`, newVal, oldVal);
                 }
-            } else if (newVal !== oldValue[key]) {
+            } else if (newVal !== oldVal) {
                 this.publishUpdate(this, topic, newVal)
             }
         }

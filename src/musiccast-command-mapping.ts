@@ -8,12 +8,12 @@ export class MusiccastCommandMapping {
     switch (command) {
       case MusiccastCommands.JoinGroup:
         if (payloadIsString(payload)) {
-          await MusiccastGroupMananger.getInstance().linkById(payload, [zone.id]);
+          await MusiccastGroupMananger.getInstance().queuelinkById(payload, [zone.id]);
         }
         break;
 
       case MusiccastCommands.LeaveGroup:
-        await MusiccastGroupMananger.getInstance().unlinkFromServer(zone);
+        await MusiccastGroupMananger.getInstance().queueunlinkFromServer(zone);
         break;
 
       case MusiccastCommands.AddClients:
@@ -23,7 +23,7 @@ export class MusiccastCommandMapping {
         } else if (Array.isArray(payload)) {
           addedClients = payload;
         }
-        await MusiccastGroupMananger.getInstance().linkById(zone.id, addedClients);
+        await MusiccastGroupMananger.getInstance().queuelinkById(zone, addedClients);
         break;
 
       case MusiccastCommands.RemoveClients:
@@ -33,7 +33,7 @@ export class MusiccastCommandMapping {
         } else if (Array.isArray(payload)) {
           removedClients = payload;
         }
-        await MusiccastGroupMananger.getInstance().unlinkById(zone.id, removedClients);
+        await MusiccastGroupMananger.getInstance().queueunlinkById(zone, removedClients);
         break;
 
       case MusiccastCommands.Clients:
@@ -43,15 +43,15 @@ export class MusiccastCommandMapping {
         } else if (Array.isArray(payload)) {
           clients = payload;
         }
-        await MusiccastGroupMananger.getInstance().setLinksById(zone.id, clients);
+        await MusiccastGroupMananger.getInstance().queuesetLinksById(zone, clients);
         break;
 
       case MusiccastCommands.Server:
         if (payloadIsString(payload)) {
           if (payload.trim() === '') {
-            await MusiccastGroupMananger.getInstance().unlinkFromServer(zone);
+            await MusiccastGroupMananger.getInstance().queueunlinkFromServer(zone);
           } else {
-            await MusiccastGroupMananger.getInstance().linkById(payload, [zone.id]);
+            await MusiccastGroupMananger.getInstance().queuelinkById(payload, [zone.id]);
           }
         }
         break;
@@ -105,6 +105,11 @@ export class MusiccastCommandMapping {
       case MusiccastCommands.Input:
         if (payloadIsString(payload))
           await zone.setInput(payload);
+        break;
+
+      case MusiccastCommands.Soundprogram:
+        if(payloadIsString(payload))
+          await zone.setSoundprogram(payload);
         break;
 
       case MusiccastCommands.Power:

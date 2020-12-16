@@ -1,5 +1,5 @@
 import { ConfigLoader } from "./config";
-import { McCdPlayInfo, McFeatures, McInputId, McNameText, McNetPlayInfo, McResponseCode, McTunerPlayInfo, McZoneId } from "./musiccast-types";
+import { McCdPlayInfo, McFeatures, McInputId, McNameText, McNetPlayInfo, McResponseCode, McSoundProgram, McTunerPlayInfo, McZoneId } from "./musiccast-types";
 import request from "./request";
 import { StaticLogger } from "./static-logger";
 
@@ -106,9 +106,9 @@ export module McDeviceApi {
         let command = '/' + zone + '/setInput?input=' + input + mode;
         return SendGetToDevice(ip, command);
     };
-    export async function setSound(ip: string, input, zone: McZoneId) {
+    export async function setSound(ip: string, soundprogram: McSoundProgram, zone: McZoneId) {
         //check for correct input in calling program
-        let command = '/' + zone + '/setSoundProgram?program=' + input;
+        let command = '/' + zone + '/setSoundProgram?program=' + soundprogram;
         return SendGetToDevice(ip, command);
     };
     export async function surround(ip: string, on, zone: McZoneId) {

@@ -3,15 +3,16 @@ import { McGroupRole, McInputId, McZoneId } from './musiccast-types'
 import { MusiccastDeviceManager } from './musiccast-device-manager';
 import { McDeviceApi } from './musiccast-device-api';
 import { MusiccastZone } from './musiccast-zone';
+import { queue } from './async_queue';
 
 export class MusiccastGroupMananger {
 
     private static instance: MusiccastGroupMananger;
     private readonly log = StaticLogger.CreateLoggerForSource('MusiccastGroupMananger');
     private readonly mcDeviceManager = MusiccastDeviceManager.getInstance();
+    private readonly queue = queue(1);
 
     private constructor() {
-
     }
 
     public static getInstance(): MusiccastGroupMananger {
@@ -21,19 +22,40 @@ export class MusiccastGroupMananger {
         return MusiccastGroupMananger.instance;
     }
 
-    public async linkById(server_id: string, client_ids: string[]): Promise<void> {
-        await this.link(this.mcDeviceManager.getZoneById(server_id), client_ids.map(id => this.mcDeviceManager.getZoneById(id)));
+    public async queuelinkById(server_zone: MusiccastZone, client_ids: string[]): Promise<void> {
+        this.queue.push(async () => await this.link(server_zone, client_ids.map(id => this.mcDeviceManager.getZoneById(id))))
     }
 
-    public async unlinkById(server_id: string, client_ids: string[]): Promise<void> {
-        await this.unlink(this.mcDeviceManager.getZoneById(server_id), client_ids.map(id => this.mcDeviceManager.getZoneById(id)));
+    public async queueunlinkById(server_zone: MusiccastZone, client_ids: string[]): Promise<void> {
+        this.queue.push(async () => await this.unlink(server_zone, client_ids.map(id => this.mcDeviceManager.getZoneById(id))))
     }
 
-    public async setLinksById(server_id: string, client_ids: string[]): Promise<void> {
-        await this.setLinks(this.mcDeviceManager.getZoneById(server_id), client_ids.map(id => this.mcDeviceManager.getZoneById(id)));
+    public async queuesetLinksById(server_zone: MusiccastZone, client_ids: string[]): Promise<void> {
+        this.queue.push(async () => await this.setLinks(server_zone, client_ids.map(id => this.mcDeviceManager.getZoneById(id))))
     }
 
-    public async setLinks(server_zone: MusiccastZone, client_zones: MusiccastZone[]): Promise<void> {
+    public async queueunlinkFromServer(client_zone: MusiccastZone): Promise<void> {
+        this.queue.push(async () => await this.unlinkFromServer(client_zone))
+    }
+
+    private async unlinkFromServer(client_zone: MusiccastZone): Promise<void> {
+        if (typeof (client_zone) === 'undefined') {
+            this.log.warn("unlinkFromServer() client_zone is undefined");
+            return;
+        }
+        if (client_zone.role === McGroupRole.Client) {
+            const server_zone = client_zone.linkedServer;
+            if (server_zone)
+                await this.unlink(server_zone, [client_zone]);
+            else
+                this.log.info("unlinkFromServer was called although there is no server");
+        } else {
+            this.log.info("device is no client");
+        }
+    }
+
+    private async setLinks(server_zone: MusiccastZone, client_zones: MusiccastZone[]): Promise<void> {
+        this.log.info("Start link")
         let linkedClients = server_zone.linkedClients;
         let removedClients = linkedClients.filter(d => !client_zones.includes(d));
         let addedClients = client_zones.filter(d => !linkedClients.includes(d));
@@ -41,6 +63,8 @@ export class MusiccastGroupMananger {
             await this.unlink(server_zone, removedClients);
         if (addedClients.length > 0)
             await this.link(server_zone, addedClients);
+        this.log.info("DONE link")
+
     }
 
     private async link(server_zone: MusiccastZone, client_zones: MusiccastZone[]): Promise<void> {
@@ -134,28 +158,11 @@ export class MusiccastGroupMananger {
         await this.setGroupName(server_zone);
     }
 
-    public async unlinkFromServer(client_zone: MusiccastZone): Promise<void> {
-        if (typeof (client_zone) === 'undefined') {
-            this.log.warn("unlinkFromServer() client_zone is undefined");
-            return;
-        }
-        if (client_zone.role === McGroupRole.Client) {
-            const server_zone = client_zone.linkedServer;
-            if (server_zone)
-                await this.unlink(server_zone, [client_zone]);
-            else
-                this.log.info("unlinkFromServer was called although there is no server");
-
-        } else {
-            this.log.info("device is no client");
-        }
-    }
-
     private async unlinkAllClients(server_zone: MusiccastZone): Promise<void> {
         await this.unlink(server_zone, server_zone.linkedClients);
     }
 
-    public async unlink(server_zone: MusiccastZone, client_zones: MusiccastZone[]): Promise<void> {
+    private async unlink(server_zone: MusiccastZone, client_zones: MusiccastZone[]): Promise<void> {
         if (typeof (server_zone) === 'undefined') {
             this.log.warn("unlink() server_zone is undefined");
             return;
@@ -175,14 +182,15 @@ export class MusiccastGroupMananger {
         for (const client_zone of client_zones) {
             this.log.debug("client_zone {zone} unlink from server_zone {server} ", client_zone.id, server_zone.id)
             if (client_zone.device === server_zone.device) {
+                // if zone is on same device -> change input 
                 await McDeviceApi.setInput(client_zone.device.ip, McInputId.AUX, client_zone.zoneId);
                 await McDeviceApi.power(client_zone.device.ip, false, client_zone.zoneId);
-
-            } else if (Object.values(client_zone.device.zones).some(z => z !== client_zone && server_zone.linkedClients.includes(z) && !client_zones.includes(z) )) {
+            } else if (Object.values(client_zone.device.zones).some(z => z !== client_zone && server_zone.linkedClients.includes(z) && !client_zones.includes(z))) {
+                // if is zone on a device with other zone still linked only change input of zone 
                 await McDeviceApi.setInput(client_zone.device.ip, McInputId.AUX, client_zone.zoneId);
                 await McDeviceApi.power(client_zone.device.ip, false, client_zone.zoneId);
             } else {
-                await McDeviceApi.setClientInfo(client_zone.device.ip, "", [McZoneId.Main]);
+                await McDeviceApi.setClientInfo(client_zone.device.ip, "", [client_zone.zoneId]);
                 await client_zone.device.updateDistributionInfo();
                 removeIPs.push(client_zone.device.ip);
             }
