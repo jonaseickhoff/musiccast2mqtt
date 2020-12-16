@@ -7,23 +7,27 @@ I build this bridge, because i wanted to improve linking  musiccast devices. Lin
 
 ```
 Options:
- --broker-url:        mqtt broker url. (default: "mqtt://mqttbroker:1883")
- --prefix'            instance name. used as prefix for all topics (default: 'musiccast')
- --log                Set the loglevel ('warning', 'information', 'debug', 'verbose') (default: information)
- --polling-interval   device status polling interval in seconds. Set 0 for disable polling. (default: 10)
-                      Please have in mind that listen to UDP Events is only possible 
-                      if a polling is done at least every 10 minutes
- --mqtt-retain        enable/disable retain flag for mqtt messages (default: true)
- --friendlynames      Use device 'name' or 'id' (be sure to have unique device names if using name) (default: name)
- --zone-friendlynames Use zone name friendly name as room name. Only useful when friendlynames set to "name". (default: name)
-                      Example: 
-                      id:     Mainzone    -> <roomname>
-                              zone2       -> <roomname>-zone2            
-                      name:   Mainzone    -> <roomname>
-                              zone2       -> <zone-friendlyname>`
- --insecure           allow tls connections with invalid certificates (default: true)
- --devices            array of devices which should be controlled by mqtt bridge (if you dont want to discover)
- --udp-port            port for listening on udp events on status change. (default: 41100)
+ --broker-url:                 mqtt broker url (default: "mqtt://mqttbroker:1883")
+ --prefix'                     instance name. used as prefix for all topics (default: 'musiccast')
+ --log                         Set the loglevel ('warning', 'information', 'debug', 'verbose') (default: information)
+ --polling-interval            device status polling interval in seconds. Set 0 for disable polling. (default: 10)
+                               Please have in mind that listen to UDP Events is only possible 
+                               if a polling is done at least every 10 minutes
+ --mqtt-retain                 enable/disable retain flag for mqtt messages (default: true)
+ --friendlynames               Use device 'name' or 'id' (be sure to have unique device names if using name) 
+                               (default: name)
+ --zone-friendlynames          Use zone name friendly name as room name. Only useful when friendlynames set to "name"
+                               (default: name)
+                               Example: 
+                               id:     Mainzone    -> <roomname>
+                                       zone2       -> <roomname>-zone2            
+                               name:   Mainzone    -> <roomname>
+                                       zone2       -> <zone-friendlyname>`
+ --input-friendlynames         Use friendlynames and renamed input names or fix input ids
+ --soundprogram-friendlynames  Use friendlynames and renamed soundprograms names or fix soundprogram ids
+ --insecure                    allow tls connections with invalid certificates (default: true)
+ --devices                     array of devices which should be controlled by mqtt bridge (if you dont want to discover)
+ --udp-port                    port for listening on udp events on status change. (default: 41100)
 ```
 
 Options can also be given as environment variables. 
