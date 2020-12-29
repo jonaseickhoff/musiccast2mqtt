@@ -76,6 +76,11 @@ export class MusiccastCommandMapping {
         await zone.stop();
         break;
 
+      case MusiccastCommands.PlayPosition:
+        if (payloadIsNumber(payload))
+          await zone.playPosition(payload)
+        break;
+
       case MusiccastCommands.Repeat:
         if (payloadIsString(payload))
           await zone.setRepeat(payload);
@@ -108,7 +113,7 @@ export class MusiccastCommandMapping {
         break;
 
       case MusiccastCommands.Soundprogram:
-        if(payloadIsString(payload))
+        if (payloadIsString(payload))
           await zone.setSoundprogram(payload);
         break;
 

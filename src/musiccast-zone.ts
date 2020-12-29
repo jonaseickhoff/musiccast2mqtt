@@ -89,17 +89,17 @@ export class MusiccastZone {
 
     public get name(): string {
         if (this.zoneId === McZoneId.Main)
-            return this.device.id;
-        return this.device.zoneToFriendlyname[this.zoneId]
+            return this._device.id;
+        return this._device.zoneToFriendlyname[this.zoneId]
     }
 
     public get id(): string {
         if (this.zoneId === McZoneId.Main)
-            return this.device.id;
+            return this._device.id;
         if (this.useZoneFriendlyNames) {
-            return this.device.zoneToFriendlyname[this.zoneId]
+            return this._device.zoneToFriendlyname[this.zoneId]
         } else {
-            return this.device.id + '-' + this.zoneId;
+            return this._device.id + '-' + this.zoneId;
         }
     }
 
@@ -131,7 +131,7 @@ export class MusiccastZone {
 
     public async setInput(input: string): Promise<void> {
         if (this.useInputFriendlyNames)
-            input = this.device.friendlynameToInput[input];
+            input = this._device.friendlynameToInput[input];
 
         if (this._features.input_list.some(i => i === input)) {
             await McDeviceApi.setInput(this._device.ip, input as McInputId, this.zoneId);
@@ -142,7 +142,7 @@ export class MusiccastZone {
 
     public async setSoundprogram(soundprogram: string): Promise<void> {
         if (this.useSoundprogramFriendlyNames)
-            soundprogram = this.device.friendlynameToSoundprogram[soundprogram];
+            soundprogram = this._device.friendlynameToSoundprogram[soundprogram];
 
         if (this._features.sound_program_list.some(i => i === soundprogram)) {
             await McDeviceApi.setSound(this._device.ip, soundprogram as McSoundProgram, this.zoneId);
@@ -164,7 +164,7 @@ export class MusiccastZone {
                 break;
             case 'tuner':
             default:
-                this.log.debug("cannot play in this input");
+                this.log.warn("cannot play in this input");
         }
     }
 
@@ -179,7 +179,7 @@ export class MusiccastZone {
                 break;
             case 'tuner':
             default:
-                this.log.debug("cannot pause in this input");
+                this.log.warn("cannot pause in this input");
         }
     }
 
@@ -194,7 +194,7 @@ export class MusiccastZone {
                 break;
             case 'tuner':
             default:
-                this.log.debug("cannot stop in this input");
+                this.log.warn("cannot stop in this input");
         }
     }
 
@@ -211,7 +211,7 @@ export class MusiccastZone {
                 await McDeviceApi.switchPresetTuner(this._device.ip, "next");
                 break;
             default:
-                this.log.debug("cannot play next in this input");
+                this.log.warn("cannot play next in this input");
         }
     }
 
@@ -228,8 +228,22 @@ export class MusiccastZone {
                 await McDeviceApi.switchPresetTuner(this._device.ip, "previous");
                 break;
             default:
-                this.log.debug("cannot play previous in this input");
+                this.log.warn("cannot play previous in this input");
         }
+    }
+
+    public async playPosition(position: number) {
+        let playinfo = this.getPlayInfo();
+        switch (playinfo) {
+            case 'netusb':
+                await McDeviceApi.setNetPlayPosition(this._device.ip, position);
+                break;
+            case 'cd':           
+            case 'tuner':            
+            default:
+                this.log.warn("cannot set playposition in this input");
+        }
+      throw new Error("Method not implemented.");
     }
 
     public async setRepeat(mode: string,): Promise<void> {
@@ -243,7 +257,7 @@ export class MusiccastZone {
                 break;
             case 'tuner':
             default:
-                this.log.debug("cannot play previous in this input");
+                this.log.warn("cannot set repeat mode in this input");
         }
     }
 
@@ -258,7 +272,7 @@ export class MusiccastZone {
                 break;
             case 'tuner':
             default:
-                this.log.debug("cannot toggle previous in this input");
+                this.log.warn("cannot toggle repeate mode in this input");
         }
     }
 
@@ -273,7 +287,7 @@ export class MusiccastZone {
                 break;
             case 'tuner':
             default:
-                this.log.debug("cannot play previous in this input");
+                this.log.warn("cannot set shuffle mode in this input");
         }
     }
 
@@ -288,13 +302,13 @@ export class MusiccastZone {
                 break;
             case 'tuner':
             default:
-                this.log.debug("cannot play previous in this input");
+                this.log.warn("cannot toggle shuffle mode in this input");
         }
     }
 
 
-    private getPlayInfo() {
-        return this._device.features.system.input_list.find(i => i.id === this.getInput()).play_info_type;
+    private getPlayInfo(): "none" | "tuner" | "netusb" | "cd" {
+        return this._device.inputToPlayinfoType[this.getInput()]
     }
 
     private getInput(): McInputId {
@@ -358,7 +372,7 @@ export class MusiccastZone {
     private parsePlayInfo(): void {
         if (!this.mcStatus)
             return;
-        let playInfoType = this.device.inputToPlayinfoType[this.mcStatus.input];
+        let playInfoType = this._device.inputToPlayinfoType[this.mcStatus.input];
         let playtime = -60000
         let totaltime = 0
         switch (playInfoType) {
@@ -367,10 +381,10 @@ export class MusiccastZone {
                     this.log.error("No netusbPlayInfo although netusb input selected");
                     return;
                 }
-                this._status.player.playback = this.device.netPlayInfo.playback || "";
-                this._status.player.title = this.device.netPlayInfo.track || "";
-                this._status.player.artist = this.device.netPlayInfo.artist || "";
-                this._status.player.album = this.device.netPlayInfo.album || "";
+                this._status.player.playback = this._device.netPlayInfo.playback || "";
+                this._status.player.title = this._device.netPlayInfo.track || "";
+                this._status.player.artist = this._device.netPlayInfo.artist || "";
+                this._status.player.album = this._device.netPlayInfo.album || "";
                 this._status.player.albumarturl = this._device.netPlayInfo.albumart_url ? `http://${this._device.ip}${this._device.netPlayInfo.albumart_url}` : "";
                 playtime = this._device.netPlayInfo.play_time;
                 totaltime = this._device.netPlayInfo.total_time;
@@ -380,10 +394,10 @@ export class MusiccastZone {
                     this.log.error("No cdPlayInfo although cd input selected");
                     return;
                 }
-                this._status.player.playback = this.device.cdPlayInfo.playback || "";
-                this._status.player.title = this.device.cdPlayInfo.track || "";
-                this._status.player.artist = this.device.cdPlayInfo.artist || "";
-                this._status.player.album = this.device.cdPlayInfo.album || "";
+                this._status.player.playback = this._device.cdPlayInfo.playback || "";
+                this._status.player.title = this._device.cdPlayInfo.track || "";
+                this._status.player.artist = this._device.cdPlayInfo.artist || "";
+                this._status.player.album = this._device.cdPlayInfo.album || "";
                 this._status.player.albumarturl = "";
                 playtime = this._device.cdPlayInfo.play_time;
                 totaltime = this._device.cdPlayInfo.total_time;
@@ -395,21 +409,21 @@ export class MusiccastZone {
                 }
                 switch (this._device.tunerPlayInfo.band) {
                     case 'am':
-                        this._status.player.title = this.device.tunerPlayInfo.am.freq?.toString() || "";
-                        this._status.player.artist = this.device.tunerPlayInfo.am.preset?.toString() || "";
+                        this._status.player.title = this._device.tunerPlayInfo.am.freq?.toString() || "";
+                        this._status.player.artist = this._device.tunerPlayInfo.am.preset?.toString() || "";
                         break;
                     case 'fm':
                         if ('rds' in this._device.tunerPlayInfo) {
-                            this._status.player.title = this.device.tunerPlayInfo.rds.radio_text_a || "";
-                            this._status.player.artist = this.device.tunerPlayInfo.rds.radio_text_b || "";
+                            this._status.player.title = this._device.tunerPlayInfo.rds.radio_text_a || "";
+                            this._status.player.artist = this._device.tunerPlayInfo.rds.radio_text_b || "";
                         } else {
-                            this._status.player.title = this.device.tunerPlayInfo.fm.freq?.toString() || "";
-                            this._status.player.artist = this.device.tunerPlayInfo.fm.preset?.toString() || "";
+                            this._status.player.title = this._device.tunerPlayInfo.fm.freq?.toString() || "";
+                            this._status.player.artist = this._device.tunerPlayInfo.fm.preset?.toString() || "";
                         }
                         break;
                     case 'dab':
-                        this._status.player.title = this.device.tunerPlayInfo.dab.ensemble_label || "";
-                        this._status.player.artist = this.device.tunerPlayInfo.dab.dls || "";
+                        this._status.player.title = this._device.tunerPlayInfo.dab.ensemble_label || "";
+                        this._status.player.artist = this._device.tunerPlayInfo.dab.dls || "";
                         break;
                     default:
                 }
@@ -444,7 +458,7 @@ export class MusiccastZone {
         }
         if ('input' in this.mcStatus) {
             if (this.useInputFriendlyNames)
-                this._status.input = this.device.inputToFriendlyname[this.mcStatus.input];
+                this._status.input = this._device.inputToFriendlyname[this.mcStatus.input];
             else
                 this._status.input = this.mcStatus.input;
         }
@@ -457,7 +471,7 @@ export class MusiccastZone {
         }
         if ('sound_program' in this.mcStatus) {
             if (this.useSoundprogramFriendlyNames)
-                this._status.soundprogram = this.device.soundprogramToFriendlyname[this.mcStatus.sound_program];
+                this._status.soundprogram = this._device.soundprogramToFriendlyname[this.mcStatus.sound_program];
             else
                 this._status.soundprogram = this.mcStatus.sound_program;
         }
@@ -471,7 +485,7 @@ export class MusiccastZone {
         if (this.zoneId !== McZoneId.Main && this._status.input === McInputId.MAIN_SYNC) {
             this._status.link.role = McGroupRole.Client;
             this._linkedClients = [];
-            this._linkedServer = this.device.zones[McZoneId.Main];
+            this._linkedServer = this._device.zones[McZoneId.Main];
         }
         else {
             let clientsWithoutSlaves: MusiccastDevice[] = [];
@@ -492,7 +506,7 @@ export class MusiccastZone {
                 this._status.link.role = McGroupRole.Server
                 this._linkedClients = clientsWithoutSlaves.reduce((result, client) => result.concat(Object.values(client.zones).filter(c => c.mcStatus.input === McInputId.MC_LINK)), <MusiccastZone[]>[]);
                 this._linkedServer = null;
-                let syncedZonesOnSameDevice = Object.values(this.device.zones).filter(z => z !== this && z.mcStatus.input === McInputId.MAIN_SYNC)
+                let syncedZonesOnSameDevice = Object.values(this._device.zones).filter(z => z !== this && z.mcStatus.input === McInputId.MAIN_SYNC)
                 this._linkedClients = this._linkedClients.concat(syncedZonesOnSameDevice);
             }
             else if (distributionInfos.role === McGroupRole.Client && !this._device.isGroupIdEmpty() && this.mcStatus.input === McInputId.MC_LINK) {
@@ -523,13 +537,13 @@ export class MusiccastZone {
 
     public publishFeatures(): void {
         if (this.useInputFriendlyNames) {
-            this.publishUpdate(this, "features/input", this._features.input_list.map(id => this.device.inputToFriendlyname[id]));
+            this.publishUpdate(this, "features/input", this._features.input_list.map(id => this._device.inputToFriendlyname[id]));
         } else {
             this.publishUpdate(this, "features/input", this._features.input_list);
         }
         if (this._features.sound_program_list)
             if (this.useSoundprogramFriendlyNames) {
-                this.publishUpdate(this, "features/soundprogram", this._features.sound_program_list.map(id => this.device.soundprogramToFriendlyname[id]));
+                this.publishUpdate(this, "features/soundprogram", this._features.sound_program_list.map(id => this._device.soundprogramToFriendlyname[id]));
             } else {
                 this.publishUpdate(this, "features/soundprogram", this._features.sound_program_list);
             }

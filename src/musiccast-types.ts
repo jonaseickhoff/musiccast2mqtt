@@ -282,7 +282,7 @@ export interface McTunerPlayInfo {
         audio_mode: string;
     };
     /**   Returns RDS information. Available only when RDS is valid */
-    rds: {
+    rds?: {
         /**   Returns Program Type */
         program_type: string;
         /** Returns Program Service */
