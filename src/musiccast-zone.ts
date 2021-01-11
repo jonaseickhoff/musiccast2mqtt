@@ -2,7 +2,7 @@ import { ConfigLoader } from "./config";
 import { MusiccastDevice } from "./musiccast-device";
 import { McDeviceApi } from "./musiccast-device-api";
 import { MusiccastDeviceManager } from "./musiccast-device-manager";
-import { McGroupRole, McInputId, McSoundProgram, McStatus, McZoneFeatures, McZoneId } from "./musiccast-types";
+import { McGroupRole, McInputId, McSoundProgram, McStatus, McZoneEvent, McZoneFeatures, McZoneId } from "./musiccast-types";
 import { StaticLogger } from "./static-logger";
 
 interface updateCallback { (zone: MusiccastZone, topic: string, payload: any): void }
@@ -368,6 +368,17 @@ export class MusiccastZone {
 
 
     /* Reading and Parsing Status */
+
+    public parseZoneEvent(event: McZoneEvent){
+        this.mcStatus = { ...this.mcStatus, ...event };
+        if ('status_updated' in event) {
+            // Returns whether or not other info has changed than main zone
+            // power/input/volume/mute status. If so, pull renewed info using /main/getStatus
+            this.device.updateStatus(this.zoneId);
+        }
+        if ('signal_info_updated' in event) {
+        }
+    }
 
     private parsePlayInfo(): void {
         if (!this.mcStatus)

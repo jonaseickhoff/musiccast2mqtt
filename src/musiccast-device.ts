@@ -326,7 +326,7 @@ export class MusiccastDevice {
         this.log.verbose("device {device_id} new event: {message}", this.id, JSON.stringify(event));
         for (const zone of this._features.zone) {
             if (zone.id in event) {
-                this.parseZoneEvent(zone.id, event[zone.id]);
+                this.zones[zone.id].parseZoneEvent(event[zone.id])
             }
         }
         if ('system' in event) {
@@ -355,24 +355,11 @@ export class MusiccastDevice {
                 this._cdPlayInfo.play_time = event.cd.play_time;
             }
         }
-        if ('dist' in event && event.dist.dist_info_updated) {
+        if ('dist' in event && event.dist.dist_info_updated) { 
             this.updateDistributionInfo().then(() => this.publishChangedStatus());
         }
         this.publishChangedStatus();
     }
-
-    private parseZoneEvent(zone: McZoneId, event: any) {
-        this._zones[zone].mcStatus = { ...this._zones[zone].mcStatus, ...event[zone] };
-        if ('status_updated' in event) {
-            // Returns whether or not other info has changed than main zone
-            // power/input/volume/mute status. If so, pull renewed info using /main/getStatus
-            this.updateStatus(zone);
-        }
-        if ('signal_info_updated' in event) {
-        }
-        this.zoneUpdated(this.zones[McZoneId.Main], `debug/${zone}/status`, this._zones[zone].mcStatus);
-    }
-
 
     private publishChangedStatus() {
         if (this._isInitalized)
