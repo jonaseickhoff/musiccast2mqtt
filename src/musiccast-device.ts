@@ -90,16 +90,15 @@ export class MusiccastDevice {
         if (this.hasCd)
             await this.updateCdPlayInfo();
         if (this.hasTuner)
-            await this.updateTunerPlayInfo();
-
-        for (let zone of Object.values(this._zones)) {
-            zone.publishFeatures();
-        }
+            await this.updateTunerPlayInfo();      
         for (const zone of this._features.zone) {
             await this.updateStatus(zone.id);
         }
         MusiccastEventListener.DefaultInstance.RegisterSubscription(this.device_id, (event: McEvent) => this.parseNewEvent(event))
         this._isInitalized = true;
+        for (let zone of Object.values(this._zones)) {
+            zone.publishFeatures();
+        }
     }
 
     public get features(): McFeatures {
