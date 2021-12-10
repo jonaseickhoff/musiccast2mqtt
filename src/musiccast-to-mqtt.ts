@@ -84,7 +84,7 @@ export class MusiccastToMqtt implements IDeviceUpdatedListener {
         });
 
         this.mqttClient.on('message', (topic, payload: any) => {
-            this.log.debug('mqtt <', topic, payload);
+            this.log.debug('mqtt < {topic}: {payload}', topic, payload);
 
             try {
                 const parts: string[] = topic.replace(`${this.mqtt_prefix}/`, '').split('/')

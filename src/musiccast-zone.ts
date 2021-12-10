@@ -137,6 +137,11 @@ export class MusiccastZone {
             await McDeviceApi.setInput(this._device.ip, input as McInputId, this.zoneId);
         } else {
             this.log.warn('unkown input "{input}" for device {deviceid} in zone {zone}', input, this._device.id, this.zoneId);
+            if (this.useInputFriendlyNames) {
+                this.log.warn('input should have been in {friendly_names}', JSON.stringify(this._device.friendlynameToInput));
+            } else {
+                this.log.warn('input should have been in {input_list}', JSON.stringify(this._features.input_list));
+            }
         }
     }
 
