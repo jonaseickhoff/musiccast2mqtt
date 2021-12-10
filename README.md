@@ -63,6 +63,28 @@ services:
       - MUSICCAST2MQTT_UDP_PORT=41100
 ```
 
+To run `musiccast2mqtt`, place the above `docker-compose.yml` in the
+musiccast2mqtt directory, adapt the environment to your needs and run
+`docker-compose build && docker-compose up` within the directory.
+
+### Running commands with musiccast2mqtt
+
+To run commands with musiccast2mqtt send a MQTT message with to your mqtt
+broker. Some examples are given in the following list with mosquitto as mqtt
+client:
+
+* Turn
+  on <device>: `mosquitto_pub -h 192.168.178.120 -t musiccast/set/<device>/power -m 'on'`
+* Set the volume of <device> to
+  20: `mosquitto_pub -h 192.168.178.120 -t musiccast/set/<device>/volume -m '20'`
+* Set <device1> and <device2> as client
+  of <device>: `mosquitto_pub -h 192.168.178.120 -t musiccast/set/<device>/clients -m '<device1>,<device2>'`
+* Set <device> input to
+  spotify: `mosquitto_pub -h 192.168.178.120 -t musiccast/set/<device>/input -m Spotify`
+
+To see the supported commands, have a look at `musiccast-commands.ts` and the
+musiccast API at https://github.com/honnel/yamaha-commands.
+
 ## Special thanks
 This bridge is inspired on [sonos2mqtt](https://github.com/svrooij/sonos2mqtt) by [Stephan van Rooij](https://github.com/svrooij). That was a great sample on how to create a smartspeaker to mqtt bridge. 
 In addition [yamaha-yxc-nodejs](https://github.com/foxthefox/yamaha-yxc-nodejs) by [foxthefox](https://github.com/foxthefox) was a greate sample for communicating with musiccast devices from node.js.
