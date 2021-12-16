@@ -244,7 +244,7 @@ export class MusiccastDevice {
         try {
             this._features = await McDeviceApi.getFeatures(this.ip);
             this._features.system.input_list.forEach(i => this._inputToPlayinfoType[i.id] = i.play_info_type);
-            this.log.debug("{device_id} Features: {features}", this.device_id, this._features);
+            this.log.debug("{device_id} Features: {features}", this.device_id, JSON.stringify(this._features));
             this.zoneUpdated(this.zones[McZoneId.Main], `debug/features`, this._features);
             for (let zone of this._features.zone) {
                 this._zones[zone.id] = new MusiccastZone(this, zone, (zone, topic, payload) => this.zoneUpdated(zone, topic, payload));
@@ -257,7 +257,7 @@ export class MusiccastDevice {
     private async updateNameText(): Promise<void> {
         try {
             let nameText = await McDeviceApi.getNameText(this.ip);
-            this.log.debug("{device_id} NameText: {nameText}", this.device_id, nameText);
+            this.log.debug("{device_id} NameText: {nameText}", this.device_id, JSON.stringify(nameText));
             this.zoneUpdated(this.zones[McZoneId.Main], `debug/nameText`, nameText);
             nameText.input_list.forEach(l => {
                 this._inputToFriendlyname[l.id] = l.text;
@@ -290,7 +290,7 @@ export class MusiccastDevice {
     private async updateNetPlayInfo(): Promise<void> {
         try {
             this._netPlayInfo = await McDeviceApi.getNetPlayInfo(this.ip);
-            this.log.debug("{device_id} netusb playinfo: {playInfo}", this.id, this._netPlayInfo);
+            this.log.debug("{device_id} netusb playinfo: {playInfo}", this.id, JSON.stringify(this._netPlayInfo));
             this.zoneUpdated(this.zones[McZoneId.Main], `debug/netusbPlayInfo`, this._netPlayInfo);
         } catch (error) {
             this.log.error("{device_id}: Error update netusb playinfo. Error: {error}", this.id, error)
@@ -300,7 +300,7 @@ export class MusiccastDevice {
     private async updateTunerPlayInfo(): Promise<void> {
         try {
             this._tunerPlayInfo = await McDeviceApi.getTunerPlayInfo(this.ip);
-            this.log.debug("{device_id} tuner playinfo: {playInfo}", this.id, this._tunerPlayInfo);
+            this.log.debug("{device_id} tuner playinfo: {playInfo}", this.id, JSON.stringify(this._tunerPlayInfo));
             this.zoneUpdated(this.zones[McZoneId.Main], `debug/tunerPlayInfo`, this._tunerPlayInfo);
         } catch (error) {
             this.log.error("{device_id}: Error update tuner playinfo. Error: {error}", this.id, error)
@@ -310,7 +310,7 @@ export class MusiccastDevice {
     private async updateCdPlayInfo(): Promise<void> {
         try {
             this._cdPlayInfo = await McDeviceApi.getCdPlayInfo(this.ip);
-            this.log.debug("{device_id} cd playinfo: {playInfo}", this.id, this._cdPlayInfo);
+            this.log.debug("{device_id} cd playinfo: {playInfo}", this.id, JSON.stringify(this._cdPlayInfo));
             this.zoneUpdated(this.zones[McZoneId.Main], `debug/cdPlayInfo`, this._cdPlayInfo);
         } catch (error) {
             this.log.error("{device_id}: Error update cd playinfo. Error: {error}", this.id, error)
