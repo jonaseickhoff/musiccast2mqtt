@@ -1,9 +1,10 @@
 # musiccast2mqtt
+
 This node application is a bridge between Yamaha Musiccast devices and a mqtt server. The status of all your Yamaha Musiccast devices will be published to mqtt and you can control the speakers and zones over mqtt.
 
 I build this bridge, because i wanted to improve linking  musiccast devices. Linking devices with this bridge will automatically do some actions like unpairing from old groups or delete groups if new client device a server. In addition zones are also treated as simple devices. So you can link and unlink zones as simple as other devices.
 
-### Usage
+## Usage
 
 ```
 Options:
@@ -30,22 +31,22 @@ Options:
  --udp-port                    port for listening on udp events on status change. (default: 41100)
 ```
 
-Options can also be given as environment variables. 
+Options can also be given as environment variables.
 Environment variables have the prefix 'MUSICCAST2MQTT_' and are upper-case. Minus is replaced by underscore.
 Example: MUSICCAST2MQTT_BROKER_URL
 
-#### MQTT URL
+### MQTT URL
 
-You can add Username/Password for the connection to the MQTT broker to the MQTT URL param like e.g. 
+You can add Username/Password for the connection to the MQTT broker to the MQTT URL param like e.g.
 `mqtt://user:pass@broker`. For a secure connection via TLS use `mqtts://` as URL scheme.
 
-### Topics
+## Topics
 
-All devices are published under your prefix topic. By default this is 'musiccast'. 
+All devices are published under your prefix topic. By default this is 'musiccast'.
 
-### docker-compose.yml
+## docker-compose.yml
 
-```
+```yaml
 version: "3.7"
 services:
   musiccast2mqtt:
@@ -67,25 +68,26 @@ To run `musiccast2mqtt`, place the above `docker-compose.yml` in the
 musiccast2mqtt directory, adapt the environment to your needs and run
 `docker-compose build && docker-compose up` within the directory.
 
-### Running commands with musiccast2mqtt
+## Running commands with musiccast2mqtt
 
 To run commands with musiccast2mqtt send a MQTT message with to your mqtt
 broker. Some examples are given in the following list with mosquitto as mqtt
 client:
 
 * Turn
-  on <device>: `mosquitto_pub -h 192.168.178.120 -t musiccast/set/<device>/power -m 'on'`
-* Set the volume of <device> to
+  on `<device>`: `mosquitto_pub -h 192.168.178.120 -t musiccast/set/<device>/power -m 'on'`
+* Set the volume of `<device>` to
   20: `mosquitto_pub -h 192.168.178.120 -t musiccast/set/<device>/volume -m '20'`
-* Set <device1> and <device2> as client
-  of <device>: `mosquitto_pub -h 192.168.178.120 -t musiccast/set/<device>/clients -m '<device1>,<device2>'`
-* Set <device> input to
+* Set `<device1>` and `<device2>` as client
+  of `<device>`: `mosquitto_pub -h 192.168.178.120 -t musiccast/set/<device>/clients -m '<device1>,<device2>'`
+* Set `<device>` input to
   spotify: `mosquitto_pub -h 192.168.178.120 -t musiccast/set/<device>/input -m Spotify`
+* Recall Network Preset (Netradio or Favorite of local server) number 3 of `<device>`: `mosquitto_pub -h 192.168.178.120 -t musiccast/set/<device>/RecallPreset -m '3'`
 
 To see the supported commands, have a look at `musiccast-commands.ts` and the
-musiccast API at https://github.com/honnel/yamaha-commands.
+musiccast API at <https://github.com/honnel/yamaha-commands>.
 
 ## Special thanks
-This bridge is inspired on [sonos2mqtt](https://github.com/svrooij/sonos2mqtt) by [Stephan van Rooij](https://github.com/svrooij). That was a great sample on how to create a smartspeaker to mqtt bridge. 
-In addition [yamaha-yxc-nodejs](https://github.com/foxthefox/yamaha-yxc-nodejs) by [foxthefox](https://github.com/foxthefox) was a greate sample for communicating with musiccast devices from node.js.
 
+This bridge is inspired on [sonos2mqtt](https://github.com/svrooij/sonos2mqtt) by [Stephan van Rooij](https://github.com/svrooij). That was a great sample on how to create a smartspeaker to mqtt bridge.
+In addition [yamaha-yxc-nodejs](https://github.com/foxthefox/yamaha-yxc-nodejs) by [foxthefox](https://github.com/foxthefox) was a greate sample for communicating with musiccast devices from node.js.
