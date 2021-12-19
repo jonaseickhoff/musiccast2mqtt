@@ -137,11 +137,6 @@ export class MusiccastZone {
             await McDeviceApi.setInput(this._device.ip, input as McInputId, this.zoneId);
         } else {
             this.log.warn('unkown input "{input}" for device {deviceid} in zone {zone}', input, this._device.id, this.zoneId);
-            if (this.useInputFriendlyNames) {
-                this.log.warn('input should have been in {friendly_names}', JSON.stringify(this._device.friendlynameToInput));
-            } else {
-                this.log.warn('input should have been in {input_list}', JSON.stringify(this._features.input_list));
-            }
         }
     }
 
@@ -318,6 +313,16 @@ export class MusiccastZone {
 
     private getInput(): McInputId {
         return this.mcStatus.input
+    }
+
+    /* wrapper for recallPreset command. Catch preset value >40 because MC devices only support up to 40 presets.
+    A preset is a netradio station or a file or folder from a local server or usb device that is saved as favorite.
+    */
+    public async recallPreset(val: number): Promise<void> {
+        if (val <= 40)
+            await McDeviceApi.recallPreset(this._device.ip,val,this.zoneId);
+        else
+            this.log.info("Preset value too high (>40)");
     }
 
     /* Control Volume */

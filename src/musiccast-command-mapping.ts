@@ -141,6 +141,11 @@ export class MusiccastCommandMapping {
       case MusiccastCommands.VolumeUp:
         await zone.volumeUp();
         break;
+      
+      case MusiccastCommands.RecallPreset:
+        if (payloadIsNumber(payload))
+          await zone.recallPreset(payload);
+        break;
 
       default:
         throw new Error(`Command '${command}' not implemented`)
