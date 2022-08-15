@@ -320,6 +320,16 @@ export class MusiccastZone {
         return this.mcStatus.input
     }
 
+    /* wrapper for recallPreset command. Catch preset value >40 because MC devices only support up to 40 presets.
+    A preset is a netradio station or a file or folder from a local server or usb device that is saved as favorite.
+    */
+    public async recallPreset(val: number): Promise<void> {
+        if (val <= 40)
+            await McDeviceApi.recallPreset(this._device.ip,val,this.zoneId);
+        else
+            this.log.info("Preset value too high (>40)");
+    }
+
     /* Control Volume */
 
     public async setVolume(volume: number): Promise<void> {

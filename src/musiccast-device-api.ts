@@ -263,6 +263,9 @@ export module McDeviceApi {
         return SendGetToDevice(ip, command);
     }
 
+    /* recalls, i.e., opens a preset <val> for playback on device with IP <ip> in its zone <zone>.
+    A preset is a netradio station or a file or folder from a local server or usb device that is saved as favorite.
+    */
     export async function recallPreset(ip: string, val, zone) {
         if (!val) val = '1';
         let command = '/netusb/recallPreset?zone=' + zone + '&num=' + val;
