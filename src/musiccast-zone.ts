@@ -243,12 +243,12 @@ export class MusiccastZone {
             case 'netusb':
                 await McDeviceApi.setNetPlayPosition(this._device.ip, position);
                 break;
-            case 'cd':           
-            case 'tuner':            
+            case 'cd':
+            case 'tuner':
             default:
                 this.log.warn("cannot set playposition in this input");
         }
-      throw new Error("Method not implemented.");
+        throw new Error("Method not implemented.");
     }
 
     public async setRepeat(mode: string,): Promise<void> {
@@ -325,7 +325,7 @@ export class MusiccastZone {
     */
     public async recallPreset(val: number): Promise<void> {
         if (val <= 40)
-            await McDeviceApi.recallPreset(this._device.ip,val,this.zoneId);
+            await McDeviceApi.recallPreset(this._device.ip, val, this.zoneId);
         else
             this.log.info("Preset value too high (>40)");
     }
@@ -384,7 +384,7 @@ export class MusiccastZone {
 
     /* Reading and Parsing Status */
 
-    public parseZoneEvent(event: McZoneEvent){
+    public parseZoneEvent(event: McZoneEvent) {
         this.mcStatus = { ...this.mcStatus, ...event };
         if ('status_updated' in event) {
             // Returns whether or not other info has changed than main zone

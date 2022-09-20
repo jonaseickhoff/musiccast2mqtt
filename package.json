@@ -23,7 +23,7 @@
   "author": "Jonas Eickhoff <jonas02401@gmail.com> (https://github.com/jonaseickhoff/)",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/jeickhoff/musiccast2mqtt/issues"
+    "url": "https://github.com/jonaseickhoff/musiccast2mqtt/issues"
   },
   "homepage": "https://github.com/jonaseickhoff/musiccast2mqtt",
   "dependencies": {
